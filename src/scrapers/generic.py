@@ -6,6 +6,8 @@ from datetime import date, datetime
 from typing import Any
 from urllib.parse import urljoin
 
+from dateutil.relativedelta import relativedelta
+
 from src.config import ArtistConfig, DetailConfig
 from src.models.event import LiveEvent
 from src.scrapers.base import BaseScraper
@@ -53,21 +55,21 @@ class GenericScraper(BaseScraper):
         nav_type = config.navigation.type
 
         if nav_type == "api_endpoint":
-            return self._scrape_api(config)
-
-        if nav_type == "single_page":
+            events = self._scrape_api(config)
+        elif nav_type == "single_page":
             page = self._fetch_page(config.base_url, config.fetch.dynamic)
-            if page is None:
-                return []
-            return self._parse_events(page, config)
+            events = [] if page is None else self._parse_events(page, config)
+        elif nav_type == "pagination_links":
+            events = self._scrape_pagination_links(config)
+        else:
+            raise NotImplementedError(
+                f"navigation.type '{nav_type}' is not yet supported. "
+                "Supported types: 'single_page', 'api_endpoint', 'pagination_links'."
+            )
 
-        if nav_type == "pagination_links":
-            return self._scrape_pagination_links(config)
-
-        raise NotImplementedError(
-            f"navigation.type '{nav_type}' is not yet supported. "
-            "Supported types: 'single_page', 'api_endpoint', 'pagination_links'."
-        )
+        today = date.today()
+        cutoff = today + relativedelta(months=config.navigation.range_months)
+        return [e for e in events if e.date and today <= e.date <= cutoff]
 
     def _scrape_pagination_links(self, config: ArtistConfig) -> list[LiveEvent]:
         """pagination_links タイプのスクレイピングを実行する。
