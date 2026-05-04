@@ -75,7 +75,7 @@ class DiscordNotifier:
         🏟️ 会場名（都道府県）
         🎫 チケット URL
 
-        [ソース URL で見る](source_url)
+        <source_url>
         ```
 
         Args:
@@ -101,7 +101,7 @@ class DiscordNotifier:
 
         lines.append("")
         if event.source_url:
-            lines.append(f"[ソース URL で見る]({event.source_url})")
+            lines.append(f"<{event.source_url}>")
 
         self._send("\n".join(lines))
 
@@ -116,7 +116,7 @@ class DiscordNotifier:
         📅 開催日
         ✅ 更新された情報: フィールド名1, フィールド名2
 
-        [ソース URL で見る](source_url)
+        <source_url>
         ```
 
         diff に含まれるフィールド名はユーザー可読な日本語ラベルに変換して表示する。
@@ -158,7 +158,7 @@ class DiscordNotifier:
 
         lines.append("")
         if event.source_url:
-            lines.append(f"[ソース URL で見る]({event.source_url})")
+            lines.append(f"<{event.source_url}>")
 
         self._send("\n".join(lines))
 
