@@ -12,6 +12,7 @@ dependencies = [
     "google-genai",
     "httpx",
     "typer>=0.25.1",
+    "python-dateutil>=2.9.0",
 ]
 
 [build-system]
