@@ -9,6 +9,6 @@ dependencies = [
     "python-dotenv",
     "PyYAML",
     "anthropic",
-    "google-generativeai",
+    "google-genai",
     "httpx",
 ]

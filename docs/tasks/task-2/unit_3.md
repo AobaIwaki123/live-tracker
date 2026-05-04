@@ -24,7 +24,7 @@ gh pr create --title "feat: AI Provider 抽象クライアント（Claude / Gemi
 | `src/ai/__init__.py` | 新規 |
 | `src/ai/provider.py` | 新規 |
 | `.env.example` | 更新 |
-| `pyproject.toml` | 更新（`google-generativeai` 追加） |
+| `pyproject.toml` | 更新（`google-genai` 追加） |
 
 ---
 
@@ -52,12 +52,15 @@ class ClaudeProvider(AIProvider):
 
 class GeminiProvider(AIProvider):
     def __init__(self, api_key: str):
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-2.0-flash")
+        from google import genai
+        self.client = genai.Client(api_key=api_key)
 
     def complete(self, system: str, user: str) -> str:
-        response = self.model.generate_content(f"{system}\n\n{user}")
+        from google import genai
+        response = self.client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=f"{system}\n\n{user}",
+        )
         return response.text
 
 def get_ai_provider() -> AIProvider:
