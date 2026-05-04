@@ -155,28 +155,45 @@ sequenceDiagram
 ```
 idol-live-tracker/
 ├── docs/
-│   ├── requirements.md      ← 要件定義書
-│   ├── basic-design.md      ← 基本設計書
-│   └── architecture.md      ← 本ファイル（アーキテクチャ図）
+│   ├── requirements.md           ← 要件定義書
+│   ├── basic-design.md           ← 基本設計書
+│   ├── architecture.md           ← 本ファイル（アーキテクチャ図）
+│   └── discord-summary-format.md ← 週次サマリーフォーマット仕様
 ├── src/
+│   ├── ai/
+│   │   ├── __init__.py
+│   │   └── provider.py           ← AIProvider ABC + ClaudeProvider + GeminiProvider
 │   ├── analyzer/
 │   │   ├── __init__.py
-│   │   ├── site_analyzer.py ← AI サイト解析（Claude API）
-│   │   └── config_writer.py ← 解析結果を YAML へ書き戻す
-│   ├── scrapers/
+│   │   ├── site_analyzer.py      ← AI サイト解析（HTML + ネットワークキャプチャ）
+│   │   └── config_writer.py      ← 解析結果を YAML へ書き戻す
+│   ├── enricher/
 │   │   ├── __init__.py
-│   │   ├── base.py          ← BaseScraper (ABC)
-│   │   ├── url_generator.py ← navigation config → URL/リクエスト生成
-│   │   └── generic.py       ← GenericScraper
-│   ├── notion/
-│   │   ├── __init__.py
-│   │   └── client.py        ← NotionClient
+│   │   └── enricher.py           ← チケットサイト検索 + AI 補完（opt-in）
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── event.py         ← LiveEvent dataclass
-│   └── main.py              ← CLI エントリーポイント
+│   │   └── event.py              ← LiveEvent dataclass
+│   ├── notion/
+│   │   ├── __init__.py
+│   │   └── client.py             ← NotionClient（差分 upsert）
+│   ├── notifier/
+│   │   ├── __init__.py
+│   │   ├── discord.py            ← イベント単位 Discord 通知
+│   │   └── weekly_summary.py     ← 週次サマリー送信
+│   ├── scrapers/
+│   │   ├── __init__.py
+│   │   ├── base.py               ← BaseScraper (ABC)
+│   │   ├── url_generator.py      ← navigation config → URL/リクエスト生成
+│   │   └── generic.py            ← GenericScraper（全 Navigation タイプ対応）
+│   ├── store/
+│   │   ├── __init__.py
+│   │   └── local_store.py        ← SQLite イベントキャッシュ
+│   ├── config.py                 ← load_config(), ArtistConfig, AppConfig
+│   └── main.py                   ← CLI エントリーポイント（analyze/scrape/enrich/summary）
 ├── config/
-│   └── artists.yaml         ← base_url のみ記載して analyze で自動補完
+│   └── artists.yaml              ← base_url のみ記載して analyze で自動補完
+├── data/                         ← events.db（.gitignore 対象）
+├── logs/                         ← 実行ログ（.gitignore 対象）
 ├── .env.example
 └── pyproject.toml
 ```

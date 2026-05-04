@@ -28,8 +28,9 @@ uv run scrapling install
 
 ```bash
 uv run python src/main.py analyze [--artist NAME] [--force]   # Phase 1: AI がサイトを解析して YAML 設定を生成
-uv run python src/main.py scrape  [--artist NAME] [--dry-run]  # Phase 2: スクレイプして Notion + Discord に送信
-uv run python src/main.py enrich  [--artist NAME]              # Phase 3: AI が不足フィールドを補完
+uv run python src/main.py scrape  [--artist NAME] [--dry-run]  # Phase 2: スクレイプして SQLite・Notion・Discord に送信
+uv run python src/main.py enrich  [--artist NAME]              # Phase 3: AI が不足フィールドを補完（opt-in）
+uv run python src/main.py summary                              # 直近 14 日のサマリーを Discord に送信
 ```
 
 ## 定期実行（cron）
@@ -40,7 +41,11 @@ uv run python src/main.py enrich  [--artist NAME]              # Phase 3: AI が
 2. 以下を追加して保存（毎朝9時に実行する例）:
 
 ```cron
+# scrape: 毎朝9時
 0 9 * * * cd /絶対パス/idol-live-tracker && uv run python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
+
+# 週次サマリー: 毎週月曜09時（JST = UTC 0時）
+0 0 * * 1 cd /絶対パス/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
 ```
 
 3. `crontab -l` で設定を確認する
