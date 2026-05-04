@@ -1,20 +1,45 @@
+"""AI Provider 抽象クライアント — Claude / Gemini の切り替えを提供する。(参照: docs/basic-design.md § 4-0. AIProvider)"""
 import os
 from abc import ABC, abstractmethod
 
 
 class AIProvider(ABC):
+    """AI プロバイダーの抽象基底クラス。
+
+    ``complete`` の 1 メソッドのみを定義し、Claude / Gemini の差異を隠蔽する。
+    """
+
     @abstractmethod
     def complete(self, system: str, user: str) -> str:
-        """Takes system prompt + user prompt, returns response text."""
+        """Send a prompt and return the model's response text.
+
+        Args:
+            system: システムプロンプト。
+            user: ユーザープロンプト。
+
+        Returns:
+            モデルの応答テキスト。
+        """
 
 
 class ClaudeProvider(AIProvider):
+    """Anthropic Claude API を使う AIProvider 実装（モデル: claude-sonnet-4-6）。"""
+
     def __init__(self, api_key: str) -> None:
         import anthropic
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = "claude-sonnet-4-6"
 
     def complete(self, system: str, user: str) -> str:
+        """Call Claude Messages API and return the first text block.
+
+        Args:
+            system: システムプロンプト。
+            user: ユーザープロンプト。
+
+        Returns:
+            Claude の応答テキスト。空のとき空文字を返す。
+        """
         msg = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
@@ -25,11 +50,22 @@ class ClaudeProvider(AIProvider):
 
 
 class GeminiProvider(AIProvider):
+    """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.0-flash）。"""
+
     def __init__(self, api_key: str) -> None:
         from google import genai
         self.client = genai.Client(api_key=api_key)
 
     def complete(self, system: str, user: str) -> str:
+        """Call Gemini generate_content API and return the response text.
+
+        Args:
+            system: システムプロンプト（user と結合して送信）。
+            user: ユーザープロンプト。
+
+        Returns:
+            Gemini の応答テキスト。空のとき空文字を返す。
+        """
         from google import genai  # noqa: F401 — keep import for type resolution
         response = self.client.models.generate_content(
             model="gemini-2.0-flash",
@@ -39,13 +75,19 @@ class GeminiProvider(AIProvider):
 
 
 def get_ai_provider() -> AIProvider:
-    """
-    Returns the appropriate AIProvider based on AI_PROVIDER env var.
-    Priority:
-      - AI_PROVIDER=claude  → ClaudeProvider (requires ANTHROPIC_API_KEY)
-      - AI_PROVIDER=gemini  → GeminiProvider (requires GEMINI_API_KEY)
-      - AI_PROVIDER=auto    → Claude if ANTHROPIC_API_KEY set, else Gemini if GEMINI_API_KEY set
-    Raises EnvironmentError if no suitable key is found.
+    """Return an AIProvider instance based on the AI_PROVIDER env var.
+
+    Selection priority:
+
+    - ``AI_PROVIDER=claude``  → ClaudeProvider（ANTHROPIC_API_KEY 必須）
+    - ``AI_PROVIDER=gemini``  → GeminiProvider（GEMINI_API_KEY 必須）
+    - ``AI_PROVIDER=auto``    → ANTHROPIC_API_KEY があれば Claude、なければ Gemini
+
+    Returns:
+        設定に応じた AIProvider インスタンス。
+
+    Raises:
+        EnvironmentError: 対応する API キーが .env に設定されていない場合。
     """
     provider = os.environ.get("AI_PROVIDER", "auto").lower()
 

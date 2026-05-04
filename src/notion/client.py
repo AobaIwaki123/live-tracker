@@ -1,3 +1,4 @@
+"""Notion API ラッパー — イベントデータの取得・作成・差分更新を担当する。(参照: docs/basic-design.md § 4-3. NotionClient, docs/requirements.md § FR-03)"""
 from __future__ import annotations
 
 import logging
@@ -124,6 +125,15 @@ def _parse_notion_page(page: dict[str, Any]) -> NotionRecord:
 
 
 class NotionClient:
+    """Notion データベースへのアクセスを提供するクライアント。
+
+    スクレイプデータを正として差分フィールドのみを上書きする（FR-03-5）。
+    重複判定キーは ``(グループ名, イベントタイトル, 開催日)``（FR-03-3）。
+
+    Raises:
+        EnvironmentError: NOTION_TOKEN または NOTION_DATABASE_ID が未設定の場合。
+    """
+
     def __init__(self) -> None:
         token = os.environ.get("NOTION_TOKEN", "")
         db_id = os.environ.get("NOTION_DATABASE_ID", "")
@@ -135,7 +145,11 @@ class NotionClient:
         self._db_id = db_id
 
     def fetch_all(self) -> dict[tuple, NotionRecord]:
-        """Fetch all DB pages; returns {(artist, title, date): NotionRecord}."""
+        """Fetch all pages in the DB and index them by dedup key.
+
+        Returns:
+            ``{(artist, title, date): NotionRecord}`` の辞書。
+        """
         result: dict[tuple, NotionRecord] = {}
         cursor: str | None = None
 
@@ -169,7 +183,14 @@ class NotionClient:
         return result
 
     def create(self, event: LiveEvent) -> str:
-        """Create a new Notion page; return page_id."""
+        """Create a new Notion page for the given event.
+
+        Args:
+            event: 登録するライブイベント。
+
+        Returns:
+            作成した Notion ページの page_id。エラー時は空文字。
+        """
         try:
             props = _build_properties(event)
             response = self._client.pages.create(
@@ -189,7 +210,12 @@ class NotionClient:
             return ""
 
     def update(self, page_id: str, diff: dict[str, Any]) -> None:
-        """Update only the differing fields on an existing page."""
+        """Update only the differing fields on an existing Notion page.
+
+        Args:
+            page_id: 更新対象の Notion ページ ID。
+            diff: ``{field_name: new_value}`` の差分辞書。
+        """
         try:
             props = _build_properties_from_diff(diff)
             self._client.pages.update(page_id=page_id, properties=props)
@@ -204,12 +230,20 @@ class NotionClient:
     def upsert_events(
         self, events: list[LiveEvent]
     ) -> tuple[list[LiveEvent], list[tuple[LiveEvent, dict]]]:
-        """
+        """Upsert a list of events into the Notion DB.
+
         For each event:
-          - if key not in existing → create
-          - if key exists and diff → update
-          - if key exists and no diff → skip
-        Returns (created_events, [(event, diff_fields), ...])
+
+        - キーが存在しない → 新規作成
+        - キーが存在し差分あり → 差分フィールドのみ上書き更新
+        - キーが存在し差分なし → スキップ
+
+        Args:
+            events: アップサート対象のライブイベントリスト。
+
+        Returns:
+            ``(created_events, [(event, diff_fields), ...])`` のタプル。
+            created_events は新規作成されたイベントのリスト。
         """
         existing = self.fetch_all()
         created_events: list[LiveEvent] = []

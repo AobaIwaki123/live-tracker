@@ -17,6 +17,24 @@ uv sync
 cp .env.example .env  # then fill in secrets
 ```
 
+## 依存パッケージの管理
+
+### 脆弱性チェック（必須）
+
+依存パッケージを追加・更新するときは **必ず** 以下を実行し、既知の脆弱性がないことを確認すること。
+
+```bash
+uv run pip-audit        # 脆弱性チェック
+uv pip list --outdated  # アップデート確認
+```
+
+脆弱性が検出された場合は修正してから変更をコミットする。
+
+### アップデート方針
+
+- 直接依存は `uv add <package>==<latest>` または `uv lock --upgrade-package <package>` で更新する。
+- `scrapling[all]` の推移的依存（playwright / patchright）は scrapling 側が exact pin しているため、scrapling 本体のアップデートを待つ。
+
 Required env vars in `.env`:
 - `NOTION_TOKEN`, `NOTION_DATABASE_ID`
 - `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`
@@ -175,12 +193,12 @@ def func(self, arg: Type) -> ReturnType:
    - `src/scrapers/` → `docs/basic-design.md` § URLGenerator / GenericScraper, `docs/tasks/task-3/`
    - `src/notifier/discord.py` → `docs/requirements.md` § FR-04
    - `src/enricher/enricher.py` → `docs/requirements.md` § FR-06
-4. **`_` プレフィックスの関数・クラスは docstring 不要** — pydoc-markdown の出力から除外される。
+4. **`_` プレフィックスの関数・クラスは docstring 不要** — pdoc の出力から除外される。
 
 ### API ドキュメントのビルド
 
 ```bash
-uv run pydoc-markdown   # → docs/api/index.md に生成
+uv run pdoc src/ --output-dir docs/api   # → docs/api/ に HTML を生成
 ```
 
 ---

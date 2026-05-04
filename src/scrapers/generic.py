@@ -1,3 +1,4 @@
+"""汎用スクレイパー — CSS セレクタ設定ドリブンで HTML をスクレイピングする。(参照: docs/basic-design.md § 4-2. GenericScraper)"""
 from __future__ import annotations
 
 import logging
@@ -31,13 +32,24 @@ def _parse_date(raw: str) -> date | None:
 
 
 class GenericScraper(BaseScraper):
-    """HTML scraper that uses CSS selectors defined in ArtistConfig."""
+    """設定ドリブンの汎用 HTML スクレイパー。
+
+    ``ArtistConfig.selectors`` の CSS セレクタを使ってイベントを抽出する。
+    現在は ``navigation.type == 'single_page'`` のみをサポートする。
+    """
 
     def scrape(self, config: ArtistConfig) -> list[LiveEvent]:
-        """Scrape events for the given artist.
+        """Scrape live events using the CSS selectors in ArtistConfig.
 
-        Only ``navigation.type == 'single_page'`` is supported for now.
-        Other types raise ``NotImplementedError``.
+        Args:
+            config: 対象アーティストの設定。``navigation.type`` が
+                ``single_page`` 以外の場合は NotImplementedError を送出する。
+
+        Returns:
+            抽出した LiveEvent リスト。取得失敗時は空リスト。
+
+        Raises:
+            NotImplementedError: ``navigation.type`` が ``single_page`` 以外のとき。
         """
         nav_type = config.navigation.type
         if nav_type != "single_page":
