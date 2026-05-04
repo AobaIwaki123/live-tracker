@@ -7,7 +7,9 @@ from typing import Optional
 
 import typer
 
-from src.config import ArtistConfig, load_config
+from src.analyzer.config_writer import write_site_config
+from src.analyzer.site_analyzer import analyze_site, capture_page
+from src.config import ArtistConfig, _PROJECT_ROOT, load_config
 from src.enricher.enricher import Enricher
 from src.models.event import LiveEvent
 from src.notion.client import NotionClient
@@ -42,6 +44,43 @@ def _log_summary(
     typer.echo(
         f"[{artist_name}] 新規 {len(created)} 件 / 更新 {len(updated)} 件 / スキップ {skipped} 件"
     )
+
+
+@app.command()
+def analyze(
+    artist: str | None = typer.Option(None, "--artist", help="特定アーティストのみ解析"),
+    force: bool = typer.Option(False, "--force", help="解析済みでも再解析する"),
+) -> None:
+    """AI でサイト構造を解析し、config/artists.yaml を更新する。"""
+    config = load_config()
+    targets: list[ArtistConfig] = [
+        a for a in config.artists if not artist or a.name == artist
+    ]
+
+    if not targets:
+        typer.echo(f"対象アーティストが見つかりません: {artist}", err=True)
+        raise typer.Exit(code=1)
+
+    yaml_path = _PROJECT_ROOT / "config" / "artists.yaml"
+
+    for artist_config in targets:
+        if artist_config.analyzed_at and not force:
+            typer.echo(
+                f"{artist_config.name}: 解析済み（{artist_config.analyzed_at}）。--force で再解析可"
+            )
+            continue
+        try:
+            typer.echo(f"{artist_config.name}: ページをキャプチャ中...")
+            html, logs = capture_page(artist_config.base_url)
+            typer.echo(f"{artist_config.name}: AI でサイト構造を解析中...")
+            site_config = analyze_site(artist_config.base_url, html, logs)
+            if site_config is None:
+                typer.echo(f"[{artist_config.name}] 解析に失敗しました。スキップします", err=True)
+                continue
+            write_site_config(yaml_path, artist_config.name, site_config)
+            typer.echo(f"完了: config/artists.yaml を確認してください（{artist_config.name}）")
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[%s] 解析中にエラーが発生しました: %s", artist_config.name, exc)
 
 
 @app.command()
