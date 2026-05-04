@@ -138,6 +138,53 @@ src/
 - `docs/implementation-plan.md` — 3 マイルストーン × 16 Pod → 7 タスク構成
 - `docs/tasks/task-N/unit_*.md` — ユニットごとのインターフェース仕様と完了基準
 
+## Docstring & 型ヒント規約
+
+`src/` 配下のすべてのファイルに適用する。
+
+### スタイル: Google 形式
+
+```python
+def func(self, arg: Type) -> ReturnType:
+    """概要。
+
+    Args:
+        arg: 説明。
+
+    Returns:
+        説明。
+
+    Raises:
+        ExceptionType: 発生条件。
+    """
+```
+
+### 実装時のルール
+
+1. **型ヒント必須** — 全関数のシグネチャに付ける。docstring 内に型を重複させない。
+2. **モジュールレベル docstring** — 各ファイルの先頭に役割と参照先を書く。
+   ```python
+   """モジュールの役割。(参照: docs/xxx.md § YYY)"""
+   ```
+3. **docstring の内容は `docs/` から転写** — 実装対象モジュールの対応ドキュメントを参照:
+   - `src/models/event.py` → `docs/basic-design.md` § データモデル
+   - `src/config.py` → `docs/basic-design.md` § ArtistConfig
+   - `src/notion/client.py` → `docs/basic-design.md` § NotionClient, `docs/requirements.md` § FR-03
+   - `src/ai/provider.py` → `docs/basic-design.md` § AIProvider
+   - `src/analyzer/` → `docs/basic-design.md` § SiteAnalyzer, `docs/tasks/task-6/`
+   - `src/scrapers/` → `docs/basic-design.md` § URLGenerator / GenericScraper, `docs/tasks/task-3/`
+   - `src/notifier/discord.py` → `docs/requirements.md` § FR-04
+   - `src/enricher/enricher.py` → `docs/requirements.md` § FR-06
+4. **`_` プレフィックスの関数・クラスは docstring 不要** — pydoc-markdown の出力から除外される。
+
+### API ドキュメントのビルド
+
+```bash
+uv run pydoc-markdown   # → docs/api/index.md に生成
+```
+
+---
+
 ## Configuration Schema (`config/artists.yaml`)
 
 ユーザーが書くのは `name` + `base_url` のみ。`analyze` が残りを自動生成する:
