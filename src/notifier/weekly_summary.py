@@ -297,6 +297,7 @@ class WeeklySummaryNotifier:
         　🕐 OPEN HH:MM ／ START HH:MM    # 時刻がある場合のみ
         　👥 <出演者>                       # other_artists がある場合のみ
         　🎫 <サイト名>  <URL>  💴 ¥<金額>  # ticket_url がある場合
+        　🔗 <source_url>                   # source_url がある場合のみ
         ```
 
         Args:
@@ -339,6 +340,9 @@ class WeeklySummaryNotifier:
             lines.append(ticket_line)
         else:
             lines.append(f"{INDENT}🎫 チケット情報未確定")
+
+        if event.source_url:
+            lines.append(f"{INDENT}🔗 <{event.source_url}>")
 
         return "\n".join(lines)
 
