@@ -4,3 +4,4 @@ logs/*.log
 data/events.db
 .env
 settings.local.json
+.playwright-mcp/
