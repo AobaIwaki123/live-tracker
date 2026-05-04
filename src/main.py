@@ -16,6 +16,7 @@ from src.notion.client import NotionClient
 from src.notifier.discord import DiscordNotifier
 from src.notifier.weekly_summary import WeeklySummaryNotifier
 from src.scrapers.generic import GenericScraper
+from src.store.local_store import LocalStore
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,11 +111,13 @@ def scrape(
                 _print_events(events)
                 continue
 
+            store = LocalStore()
+            created, updated = store.upsert_many_diff(events)
+
             if config.env.notion_token and config.env.notion_database_id:
-                created, updated = NotionClient().upsert_events(events)
+                NotionClient().upsert_events(events)
             else:
                 logger.warning("NOTION_TOKEN / NOTION_DATABASE_ID 未設定のため Notion 書き込みをスキップします")
-                created, updated = [], []
 
             notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
             notifier.notify_batch(created=created, updated=updated)

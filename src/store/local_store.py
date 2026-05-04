@@ -203,6 +203,53 @@ class LocalStore:
         with self._connect() as conn:
             conn.executemany(_UPSERT_SQL, params)
 
+    def upsert_many_diff(
+        self, events: list[LiveEvent]
+    ) -> tuple[list[LiveEvent], list[LiveEvent]]:
+        """upsert を実行し、新規と更新を分けて返す。
+
+        重複判定キー ``(artist, title, date)`` が DB に存在しなければ新規、
+        存在していてフィールドに変化があれば更新とみなす。
+
+        Args:
+            events: 保存対象の LiveEvent リスト。
+
+        Returns:
+            ``(created, updated)`` のタプル。
+            ``created``: 今回初めて登録したイベント。
+            ``updated``: 既存レコードで 1 つ以上のフィールドが変化したイベント。
+        """
+        if not events:
+            return [], []
+
+        _COMPARABLE_FIELDS = (
+            "venue", "start_time", "ticket_url", "ticket_price",
+            "other_artists", "poster_url", "source_url",
+        )
+
+        existing: dict[tuple, LiveEvent] = {
+            e.identity_key(): e for e in self.get_all()
+        }
+
+        created: list[LiveEvent] = []
+        updated: list[LiveEvent] = []
+
+        for event in events:
+            key = event.identity_key()
+            if key not in existing:
+                created.append(event)
+            else:
+                prev = existing[key]
+                changed = any(
+                    getattr(event, f) and getattr(event, f) != getattr(prev, f)
+                    for f in _COMPARABLE_FIELDS
+                )
+                if changed:
+                    updated.append(event)
+
+        self.upsert_many(events)
+        return created, updated
+
     def get_upcoming(self, days: int = 14) -> list[LiveEvent]:
         """今日から ``days`` 日以内の未来イベントを date 昇順で返す。
 
