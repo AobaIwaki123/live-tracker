@@ -10,6 +10,7 @@ import typer
 from src.config import ArtistConfig, load_config
 from src.models.event import LiveEvent
 from src.notion.client import NotionClient
+from src.notifier.discord import DiscordNotifier
 from src.scrapers.generic import GenericScraper
 
 logging.basicConfig(
@@ -69,7 +70,8 @@ def scrape(
                 continue
 
             created, updated = NotionClient().upsert_events(events)
-            # TODO: Discord 通知 (M2-P5 で実装予定)
+            notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
+            notifier.notify_batch(created=created, updated=updated)
             _log_summary(artist_config.name, created, updated, len(events))
 
         except NotImplementedError as exc:
