@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 
 from src.config import ArtistConfig, load_config
+from src.enricher.enricher import Enricher
 from src.models.event import LiveEvent
 from src.notion.client import NotionClient
 from src.notifier.discord import DiscordNotifier
@@ -78,6 +79,15 @@ def scrape(
             typer.echo(f"[{artist_config.name}] 未対応の navigation タイプ: {exc}", err=True)
         except Exception as exc:  # noqa: BLE001
             logger.error("[%s] 処理中にエラーが発生しました: %s", artist_config.name, exc)
+
+
+@app.command()
+def enrich(
+    artist: str | None = typer.Option(None, "--artist", help="特定アーティストのみ処理"),
+) -> None:
+    """欠損フィールドを AI で補完する（opt-in）。"""
+    enricher = Enricher()
+    enricher.run(artist_filter=artist)
 
 
 if __name__ == "__main__":
