@@ -241,7 +241,7 @@ M1完了 → M2-P1 → M2-P2
 **cron 設定例（毎朝9時）**
 
 ```cron
-0 9 * * * cd /path/to/idol-live-tracker && python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
+0 9 * * * cd /path/to/idol-live-tracker && uv run python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
 ```
 
 ---
@@ -364,9 +364,9 @@ M1-P1
 
 | コマンド | 説明 | 実装 Pod |
 |---|---|---|
-| `python main.py analyze [--artist NAME] [--force]` | サイト構造を解析して YAML を更新 | M3-P4 |
-| `python main.py scrape [--artist NAME] [--dry-run]` | イベントを収集して Notion 転記・Discord 通知 | M1-P4 |
-| `python main.py enrich [--artist NAME]` | 欠損フィールドを AI で補完（opt-in） | M3-P6 |
+| `uv run python src/main.py analyze [--artist NAME] [--force]` | サイト構造を解析して YAML を更新 | M3-P4 |
+| `uv run python src/main.py scrape [--artist NAME] [--dry-run]` | イベントを収集して Notion 転記・Discord 通知 | M1-P4 |
+| `uv run python src/main.py enrich [--artist NAME]` | 欠損フィールドを AI で補完（opt-in） | M3-P6 |
 
 ---
 

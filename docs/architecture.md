@@ -178,7 +178,7 @@ idol-live-tracker/
 ├── config/
 │   └── artists.yaml         ← base_url のみ記載して analyze で自動補完
 ├── .env.example
-└── requirements.txt
+└── pyproject.toml
 ```
 
 ---

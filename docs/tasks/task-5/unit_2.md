@@ -50,8 +50,7 @@ def _fetch_page(self, url: str, dynamic: bool) -> Page:
 初回のみ Playwright のブラウザをインストールする：
 
 ```bash
-pip install scrapling[all]
-scrapling install  # または playwright install chromium
+uv run scrapling install  # または uv run playwright install chromium
 ```
 
 ---

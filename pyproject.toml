@@ -1,0 +1,14 @@
+[project]
+name = "idol-live-tracker"
+version = "0.1.0"
+description = "Idol live event tracker that scrapes schedules and syncs to Notion"
+requires-python = ">=3.10"
+dependencies = [
+    "scrapling[all]",
+    "notion-client",
+    "python-dotenv",
+    "PyYAML",
+    "anthropic",
+    "google-generativeai",
+    "httpx",
+]

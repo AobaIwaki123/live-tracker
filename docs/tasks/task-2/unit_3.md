@@ -24,7 +24,7 @@ gh pr create --title "feat: AI Provider 抽象クライアント（Claude / Gemi
 | `src/ai/__init__.py` | 新規 |
 | `src/ai/provider.py` | 新規 |
 | `.env.example` | 更新 |
-| `requirements.txt` | 更新（`google-generativeai` 追加） |
+| `pyproject.toml` | 更新（`google-generativeai` 追加） |
 
 ---
 

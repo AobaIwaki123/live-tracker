@@ -25,7 +25,7 @@ gh pr create --title "feat: データモデル・設定基盤" --base main
 | `src/config.py` | 新規 |
 | `config/artists.yaml` | 更新 |
 | `.env.example` | 更新 |
-| `requirements.txt` | 更新 |
+| `pyproject.toml` | 更新 |
 
 ---
 

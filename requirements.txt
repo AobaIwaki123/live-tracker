@@ -1,4 +1,0 @@
-scrapling[all]
-notion-client
-python-dotenv
-PyYAML

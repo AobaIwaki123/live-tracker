@@ -36,7 +36,7 @@ idol-live-tracker/
 ├── logs/                        # 定期実行ログ
 │   └── .gitkeep
 ├── .env.example
-└── requirements.txt
+└── pyproject.toml
 ```
 
 ---
