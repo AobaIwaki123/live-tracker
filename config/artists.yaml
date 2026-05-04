@@ -27,3 +27,39 @@ artists:
       venue: p.mt-2::regex(🏰会場：([^\n]+))
       start_time: p.mt-2::regex(開演(\d+:\d+))
       ticket_url: p.mt-2 a::attr(href)
+- name: hnz
+  base_url: https://www.hinatazaka46.com/s/official
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: true
+  navigation:
+    type: api_endpoint
+    endpoint: /s/official/api/list/shakehands_list
+    method: GET
+    range_months: 3
+  response:
+    format: json_object_with_array
+    array_path: shakehands
+    mapping:
+      id: code
+      title: title
+      date: date
+      date_format: '%Y%m%d'
+  detail:
+    enabled: false
+- name: shallm
+  base_url: https://www.eventernote.com/actors/shallm/76150
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: single_page
+    range_months: 3
+  selectors:
+    event_list: li.clearfix
+    title: div.event h4 a
+    date: div.date p::regex(\d{4}-\d{2}-\d{2})
+    venue: div.place a
+    start_time: div.place span.s::regex(開演\s*(\d+:\d+))
+  detail:
+    enabled: false
