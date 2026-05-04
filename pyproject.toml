@@ -26,4 +26,5 @@ packages = ["src"]
 dev = [
     "pdoc>=16.0.0",
     "pip-audit>=2.10.0",
+    "pytest>=9.0.3",
 ]
