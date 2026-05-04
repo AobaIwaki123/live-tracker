@@ -198,7 +198,7 @@ def func(self, arg: Type) -> ReturnType:
 ### API ドキュメントのビルド
 
 ```bash
-uv run pdoc src/ --output-dir docs/api   # → docs/api/ に HTML を生成
+uv run pdoc src/ --output-dir docs/api --template-directory ./templates   # → docs/api/ に HTML を生成
 ```
 
 ---
