@@ -14,6 +14,7 @@ from src.enricher.enricher import Enricher
 from src.models.event import LiveEvent
 from src.notion.client import NotionClient
 from src.notifier.discord import DiscordNotifier
+from src.notifier.weekly_summary import WeeklySummaryNotifier
 from src.scrapers.generic import GenericScraper
 
 logging.basicConfig(
@@ -130,8 +131,27 @@ def enrich(
     artist: str | None = typer.Option(None, "--artist", help="特定アーティストのみ処理"),
 ) -> None:
     """欠損フィールドを AI で補完する（opt-in）。"""
-    enricher = Enricher()
+    try:
+        enricher = Enricher()
+    except EnvironmentError as exc:
+        typer.echo(f"初期化エラー: {exc}", err=True)
+        raise typer.Exit(code=1)
     enricher.run(artist_filter=artist)
+
+
+@app.command()
+def summary() -> None:
+    """直近 14 日以内のライブ予定を Discord にサマリー送信する。"""
+    from src.store.local_store import LocalStore
+    store = LocalStore()
+    events = store.get_upcoming(days=14)
+    if not events:
+        typer.echo("直近 14 日以内の予定はありません")
+        return
+    config = load_config()
+    notifier = WeeklySummaryNotifier(webhook_url=config.env.discord_webhook_url or "")
+    notifier.send(events)
+    typer.echo(f"サマリーを送信しました（{len(events)} 件）")
 
 
 if __name__ == "__main__":

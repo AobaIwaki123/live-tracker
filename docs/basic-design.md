@@ -261,7 +261,7 @@ LocalStore
 
 scrape コマンドが常に書き込む。Notion は任意の追加出力先として扱う。
 
-### 4-3b. NotionClient（src/notion/client.py）
+### 4-4. NotionClient（src/notion/client.py）
 
 ```
 NotionClient
@@ -274,7 +274,7 @@ NotionClient
 
 スクレイプデータを正とし、差分フィールドのみ上書きする。通知トリガーとなる新規・更新リストを返す。
 
-### 4-4c. WeeklySummaryNotifier（src/notifier/weekly_summary.py）
+### 4-5. WeeklySummaryNotifier（src/notifier/weekly_summary.py）
 
 ```
 WeeklySummaryNotifier
@@ -312,7 +312,7 @@ WeeklySummaryNotifier
 | other_artists | str | Tier 2〜3 |
 | poster_url | str | Tier 2: 詳細ページ |
 | source_url | str | config + Tier 1 |
-| fetch_status | str | `完全取得` / `一部未取得` / `タイトル・日付のみ` |
+| fetch_status | str | `詳細取得済み` / `詳細一部取得` / `タイトル・日付のみ` |
 
 重複判定キー: `(artist, title, date)`
 

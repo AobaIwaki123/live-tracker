@@ -229,6 +229,27 @@ M1完了 → M2-P1 → M2-P2
 
 ---
 
+### M2-P6: 定期実行セットアップ
+
+| 項目 | 内容 |
+|---|---|
+| 対象ファイル | `logs/.gitkeep` / README |
+| 実装内容 | `logs/` ディレクトリ作成 / cron 設定例を README に記載 / ログローテーション方針を記載 |
+| 完了条件 | cron 設定を貼り付けるだけで定期実行できる手順が整っている |
+| 依存 | M2-P5 |
+
+**cron 設定例**
+
+```cron
+# scrape: 毎朝9時
+0 9 * * * cd /path/to/idol-live-tracker && uv run python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
+
+# 週次サマリー: 毎週月曜09時（JST = UTC 0時）
+0 0 * * 1 cd /path/to/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
+```
+
+---
+
 ### M2-P7: LocalStore（SQLite イベントキャッシュ）
 
 | 項目 | 内容 |
@@ -252,27 +273,6 @@ M1完了 → M2-P1 → M2-P2
 **cron 設定（週次サマリー：毎週月曜 09:00 JST）**
 
 ```cron
-0 0 * * 1 cd /path/to/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
-```
-
----
-
-### M2-P6: 定期実行セットアップ
-
-| 項目 | 内容 |
-|---|---|
-| 対象ファイル | `logs/.gitkeep` / README |
-| 実装内容 | `logs/` ディレクトリ作成 / cron 設定例を README に記載 / ログローテーション方針を記載 |
-| 完了条件 | cron 設定を貼り付けるだけで定期実行できる手順が整っている |
-| 依存 | M2-P5 |
-
-**cron 設定例**
-
-```cron
-# scrape: 毎朝9時
-0 9 * * * cd /path/to/idol-live-tracker && uv run python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
-
-# 週次サマリー: 毎週月曜09時（JST = UTC 0時）
 0 0 * * 1 cd /path/to/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
 ```
 
@@ -397,8 +397,9 @@ M1-P1
 | コマンド | 説明 | 実装 Pod |
 |---|---|---|
 | `uv run python src/main.py analyze [--artist NAME] [--force]` | サイト構造を解析して YAML を更新 | M3-P4 |
-| `uv run python src/main.py scrape [--artist NAME] [--dry-run]` | イベントを収集して Notion 転記・Discord 通知 | M1-P4 |
+| `uv run python src/main.py scrape [--artist NAME] [--dry-run]` | イベントを収集して SQLite 保存・Notion 転記・Discord 通知 | M1-P4 |
 | `uv run python src/main.py enrich [--artist NAME]` | 欠損フィールドを AI で補完（opt-in） | M3-P6 |
+| `uv run python src/main.py summary` | 直近 14 日のサマリーを Discord に送信 | M2-P8 |
 
 ---
 
