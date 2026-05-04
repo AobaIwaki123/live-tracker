@@ -450,10 +450,12 @@ class GenericScraper(BaseScraper):
             regex_start = selector.index("::regex(")
             css_part = selector[:regex_start]
             pattern = selector[regex_start + 8:-1]  # strip only the final closing )
-            text = self._get_text(container, css_part)
-            m = re.search(pattern, text)
-            if m:
-                return m.group(1).strip() if m.lastindex else m.group(0).strip()
+            elements = container.css(css_part) if css_part else [container]
+            for el in elements:
+                text = el.get_all_text(separator="\n").strip()
+                m = re.search(pattern, text)
+                if m:
+                    return m.group(1).strip() if m.lastindex else m.group(0).strip()
             return ""
 
         return self._get_text(container, selector)
