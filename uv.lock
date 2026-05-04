@@ -633,7 +633,7 @@ wheels = [
 [[package]]
 name = "idol-live-tracker"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "google-genai" },
