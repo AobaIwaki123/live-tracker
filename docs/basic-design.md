@@ -23,16 +23,22 @@ idol-live-tracker/
 │   │   └── client.py           # Notion API ラッパー
 │   ├── notifier/
 │   │   ├── __init__.py
-│   │   └── discord.py          # Discord Webhook 通知
+│   │   ├── discord.py          # Discord Webhook 通知（新規・更新イベント）
+│   │   └── weekly_summary.py   # Discord 週次サマリー送信
 │   ├── enricher/
 │   │   ├── __init__.py
 │   │   └── enricher.py         # AI エンリッチメント（opt-in）
 │   ├── models/
 │   │   ├── __init__.py
 │   │   └── event.py            # LiveEvent dataclass
+│   ├── store/
+│   │   ├── __init__.py
+│   │   └── local_store.py      # ローカル SQLite イベントキャッシュ
 │   └── main.py                 # CLI エントリーポイント
 ├── config/
 │   └── artists.yaml
+├── data/
+│   └── events.db               # ローカル SQLite（.gitignore 対象）
 ├── logs/                        # 定期実行ログ
 │   └── .gitkeep
 ├── .env.example
@@ -244,7 +250,18 @@ GenericScraper
   └─ detail_scraper: DetailScraper（任意）
 ```
 
-### 4-3. NotionClient（src/notion/client.py）
+### 4-3. LocalStore（src/store/local_store.py）
+
+```
+LocalStore
+  ├─ upsert(event: LiveEvent) -> None          # 新規作成 or 差分フィールド上書き
+  ├─ get_upcoming(days: int) -> list[LiveEvent] # 今日から N 日以内のイベントを返す
+  └─ get_all() -> list[LiveEvent]
+```
+
+scrape コマンドが常に書き込む。Notion は任意の追加出力先として扱う。
+
+### 4-3b. NotionClient（src/notion/client.py）
 
 ```
 NotionClient
@@ -257,13 +274,24 @@ NotionClient
 
 スクレイプデータを正とし、差分フィールドのみ上書きする。通知トリガーとなる新規・更新リストを返す。
 
-### 4-4. CLI（src/main.py）
+### 4-4c. WeeklySummaryNotifier（src/notifier/weekly_summary.py）
+
+```
+WeeklySummaryNotifier
+  └─ send(events: list[LiveEvent]) -> None
+       # events を日付・週でグルーピングし
+       # docs/discord-summary-format.md のフォーマットで Discord に送信
+       # 2000 文字超の場合は週単位で分割して複数メッセージ送信
+```
+
+### 4-5. CLI（src/main.py）
 
 | コマンド | 動作 |
 |---|---|
 | `python main.py analyze [--artist NAME] [--force]` | base_url を解析して YAML を更新 |
-| `python main.py scrape [--artist NAME] [--dry-run]` | 設定に従ってスクレイピング＋Notion 転記＋Discord 通知 |
+| `python main.py scrape [--artist NAME] [--dry-run]` | スクレイピング → SQLite 保存 → Notion 転記（任意）→ Discord 通知 |
 | `python main.py enrich [--artist NAME]` | 欠損フィールドを AI で補完（opt-in） |
+| `python main.py summary` | 直近 2 週間のサマリーを Discord へ即時送信（cron からも呼ぶ） |
 
 ---
 

@@ -61,11 +61,12 @@
 
 ---
 
-### FR-03: Notion 転記・更新
+### FR-03: イベントデータ永続化
 
 | # | 要件 |
 |---|------|
-| FR-03-1 | Notion Integration Token と Database ID を `.env` で管理する |
+| FR-03-0 | スクレイプ結果は常にローカル SQLite（`data/events.db`）へ書き込む（Notion 不要・オフライン動作の基盤） |
+| FR-03-1 | Notion Integration Token と Database ID を `.env` で管理する（未設定時は Notion 書き込みをスキップ） |
 | FR-03-2 | 下記スキーマに従い Notion DB へ書き込む |
 | FR-03-3 | 重複判定キー `(グループ名, イベントタイトル, 開催日)` でレコードの存在を確認する |
 | FR-03-4 | 新規イベントの場合はレコードを作成する |
@@ -104,6 +105,8 @@
 | FR-04-4 | 更新通知には**どのフィールドが追加されたか**を含める |
 | FR-04-5 | 通知メッセージにはグループ名 / イベントタイトル / 開催日 / 会場名 / チケット URL / Notion ページリンクを含める |
 | FR-04-6 | Webhook URL が未設定の場合は通知をスキップし、ログに警告を出す |
+| FR-04-7 | 毎週月曜 09:00 JST に直近 2 週間のイベント予定をサマリーとして Discord へ送信する（フォーマットは `docs/discord-summary-format.md` 参照） |
+| FR-04-8 | サマリーはローカル SQLite から読み込む。Notion の有無に関わらず動作すること |
 
 ---
 
@@ -157,6 +160,6 @@ Tier 3: AI エンリッチメント（enrich コマンドで opt-in 実行）
 ## 7. 制約・前提
 
 - 対象サイトの robots.txt は利用者自身が確認する
-- Notion Integration は事前に手動で作成し DB への権限付与が済んでいること
+- Notion Integration は任意。未設定でも Discord 通知・ローカル SQLite 保存は動作する
 - Discord Webhook は事前にサーバー設定で作成しておくこと
 - `api_endpoint` タイプはリクエスト仕様が変更された場合は再解析が必要

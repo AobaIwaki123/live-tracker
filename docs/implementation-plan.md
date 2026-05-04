@@ -193,7 +193,7 @@ M1完了 → M2-P1 → M2-P2
 
 ---
 
-### M2-P5: Discord Notifier
+### M2-P5: Discord Notifier（イベント単位通知）
 
 | 項目 | 内容 |
 |---|---|
@@ -229,6 +229,34 @@ M1完了 → M2-P1 → M2-P2
 
 ---
 
+### M2-P7: LocalStore（SQLite イベントキャッシュ）
+
+| 項目 | 内容 |
+|---|---|
+| 対象ファイル | `src/store/local_store.py` |
+| 実装内容 | SQLite テーブル自動作成 / `upsert(event)` — 重複キー `(artist, title, date)` で INSERT OR REPLACE / `get_upcoming(days=14)` / `get_all()` |
+| 完了条件 | scrape 後に `data/events.db` へ全イベントが書き込まれる。Notion 設定の有無に関わらず動作する |
+| 依存 | M1-P1 |
+
+---
+
+### M2-P8: WeeklySummaryNotifier
+
+| 項目 | 内容 |
+|---|---|
+| 対象ファイル | `src/notifier/weekly_summary.py` / `src/main.py` |
+| 実装内容 | `LocalStore.get_upcoming(14)` でイベント取得 / 日付・週単位でグルーピング / `docs/discord-summary-format.md` のフォーマットでメッセージ生成 / 2000 字超は週単位で分割送信 / `python main.py summary` コマンド追加 |
+| 完了条件 | `python main.py summary` で直近 2 週間のサマリーが Discord に届く |
+| 依存 | M2-P5（Webhook POST の共通処理）/ M2-P7 |
+
+**cron 設定（週次サマリー：毎週月曜 09:00 JST）**
+
+```cron
+0 0 * * 1 cd /path/to/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
+```
+
+---
+
 ### M2-P6: 定期実行セットアップ
 
 | 項目 | 内容 |
@@ -238,10 +266,14 @@ M1完了 → M2-P1 → M2-P2
 | 完了条件 | cron 設定を貼り付けるだけで定期実行できる手順が整っている |
 | 依存 | M2-P5 |
 
-**cron 設定例（毎朝9時）**
+**cron 設定例**
 
 ```cron
+# scrape: 毎朝9時
 0 9 * * * cd /path/to/idol-live-tracker && uv run python src/main.py scrape >> logs/$(date +\%Y-\%m-\%d).log 2>&1
+
+# 週次サマリー: 毎週月曜09時（JST = UTC 0時）
+0 0 * * 1 cd /path/to/idol-live-tracker && uv run python src/main.py summary >> logs/summary-$(date +\%Y-\%m-\%d).log 2>&1
 ```
 
 ---
@@ -345,17 +377,17 @@ api_endpoint > query_param > path_segment > pagination_links > single_page
 ```
 M1-P1
   ├── M1-P2 ─────────────────────────────────────────────────────────┐
-  └── M1-P3 ── M1-P4（M1完了）                                       │
-                   │                                                   │
-                   ├── M2-P1 ── M2-P2（実機確認）                    │
-                   │         └── M2-P3 ── M2-P4                      │
-                   │                         │（M2完了）              │
-                   └── M2-P5 ── M2-P6        │                       │
-                                             M3-P1 ── M3-P2          │
-                                                        │             │
-                                                      M3-P3 ── M3-P4 ─┤
-                                                                 │
-                                                               M3-P5 ── M3-P6
+  ├── M1-P3 ── M1-P4（M1完了）                                       │
+  │                │                                                   │
+  │                ├── M2-P1 ── M2-P2（実機確認）                    │
+  │                │         └── M2-P3 ── M2-P4                      │
+  │                │                         │（M2完了）              │
+  │                └── M2-P5 ── M2-P6        │                       │
+  │                        └── M2-P8 ──┐    M3-P1 ── M3-P2          │
+  └── M2-P7 ─────────────────────────┘│              │              │
+                                        │            M3-P3 ── M3-P4 ─┤
+                                        └─ (M2-P8依存)         │
+                                                              M3-P5 ── M3-P6
 ```
 
 ---
