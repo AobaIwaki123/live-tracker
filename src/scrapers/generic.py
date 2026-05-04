@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 from typing import Any
+from urllib.parse import urljoin
 
 from src.config import ArtistConfig, DetailConfig
 from src.models.event import LiveEvent
@@ -60,10 +61,101 @@ class GenericScraper(BaseScraper):
                 return []
             return self._parse_events(page, config)
 
+        if nav_type == "pagination_links":
+            return self._scrape_pagination_links(config)
+
         raise NotImplementedError(
             f"navigation.type '{nav_type}' is not yet supported. "
-            "Supported types: 'single_page', 'api_endpoint'."
+            "Supported types: 'single_page', 'api_endpoint', 'pagination_links'."
         )
+
+    def _scrape_pagination_links(self, config: ArtistConfig) -> list[LiveEvent]:
+        """pagination_links タイプのスクレイピングを実行する。
+
+        ``config.selectors["next_page"]`` を次ページリンクのセレクタとして使う。
+        上限ページ数は ``config.navigation.range_months * 10``。
+
+        Args:
+            config: 対象アーティストの設定。
+
+        Returns:
+            全ページから収集した重複除去済み LiveEvent リスト。
+        """
+        next_selector = config.selectors.get("next_page", "")
+        if not next_selector:
+            logger.warning(
+                "Artist '%s': navigation.type is 'pagination_links' but "
+                "'next_page' key is missing from selectors. "
+                "Falling back to single-page scrape.",
+                config.name,
+            )
+            page = self._fetch_page(config.base_url, config.fetch.dynamic)
+            if page is None:
+                return []
+            return self._parse_events(page, config)
+
+        max_pages = config.navigation.range_months * 10
+        return self._follow_next_links(config.base_url, next_selector, max_pages, config)
+
+    def _follow_next_links(
+        self,
+        start_url: str,
+        next_selector: str,
+        max_pages: int,
+        config: ArtistConfig,
+    ) -> list[LiveEvent]:
+        """次ページリンクを辿り全ページのイベントを収集する。
+
+        相対 URL は ``urllib.parse.urljoin`` で絶対 URL に変換する。
+        ``identity_key`` による重複除去を行うため、同一ページが複数回取得されても安全。
+
+        Args:
+            start_url: 最初のページの URL。
+            next_selector: 次ページリンクの CSS セレクタ（``::attr(href)`` なし）。
+            max_pages: 最大取得ページ数。この数を超えたら警告を出して打ち切る。
+            config: 対象アーティストの設定。
+
+        Returns:
+            全ページから収集した重複除去済み LiveEvent リスト。
+        """
+        events: list[LiveEvent] = []
+        seen: set[tuple[str, str, date | None]] = set()
+        url = start_url
+        pages_fetched = 0
+
+        for _ in range(max_pages):
+            page = self._fetch_page(url, config.fetch.dynamic)
+            if page is None:
+                break
+
+            pages_fetched += 1
+
+            for event in self._parse_events(page, config):
+                key = event.identity_key()
+                if key not in seen:
+                    seen.add(key)
+                    events.append(event)
+
+            raw_next = page.css(next_selector + "::attr(href)").get()
+            if not raw_next:
+                break
+
+            url = urljoin(url, raw_next)
+        else:
+            logger.warning(
+                "Artist '%s': reached max_pages limit (%d) while following "
+                "pagination links. Some pages may not have been scraped.",
+                config.name,
+                max_pages,
+            )
+
+        logger.info(
+            "Artist '%s': collected %d unique events across %d page(s).",
+            config.name,
+            len(events),
+            pages_fetched,
+        )
+        return events
 
     def _scrape_api(self, config: ArtistConfig) -> list[LiveEvent]:
         """api_endpoint タイプのスクレイピングを実行する。
