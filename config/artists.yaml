@@ -1,0 +1,67 @@
+# アーティスト設定ファイル
+# 人間が記載するのは name と base_url のみ。
+# それ以外は `python main.py analyze` が自動生成する。
+
+artists:
+  # ---- 例1: analyze 済み（api_endpoint 型） ----
+  - name: avam-fc
+    base_url: https://avam-fc.com/schedule
+
+    analyzed_at: "2026-05-04"  # analyze コマンドが自動更新
+
+    fetch:
+      dynamic: true            # JS レンダリング必要
+
+    navigation:
+      type: api_endpoint
+      endpoint: /api/schedule/get
+      method: POST
+      body_template:
+        start: "{month_start}"   # YYYY-MM-DD に展開される
+        end: "{month_end}"
+      range_months: 3
+
+    response:
+      format: json_array
+      array_path: ""             # ルートが配列なので空文字
+      mapping:
+        id: id
+        title: title
+        date: reception_date
+        date_format: "%Y-%m-%d"
+
+    detail:
+      enabled: true
+      url_pattern: "{base_url}/detail/{id}?d={date}"
+      selectors:
+        venue: ".venue-name"
+        ticket_url: "a.ticket::attr(href)"
+        notes: ""
+
+  # ---- 例2: analyze 済み（query_param 型） ----
+  - name: artist-b
+    base_url: https://example-b.com/schedule
+
+    analyzed_at: "2026-05-04"
+
+    fetch:
+      dynamic: false
+
+    navigation:
+      type: query_param
+      param: d
+      value_format: "%Y-%m-%d"
+      granularity: monthly
+      range_months: 3
+
+    selectors:
+      event_list: ".schedule-item"
+      title: ".title"
+      date: ".date"
+      venue: ".venue"
+      ticket_url: "a.ticket::attr(href)"
+
+  # ---- 例3: analyze 未実施（base_url のみ記載） ----
+  # - name: new-artist
+  #   base_url: https://new-artist.com/live
+  # → python main.py analyze --artist new-artist を実行すると補完される
