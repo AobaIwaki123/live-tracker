@@ -143,13 +143,13 @@ def enrich(
 
 
 @app.command()
-def summary() -> None:
-    """直近 14 日以内のライブ予定を Discord にサマリー送信する。"""
+def summary(days: int = typer.Option(14, help="何日先までの予定を送信するか")) -> None:
+    """直近 N 日以内のライブ予定を Discord にサマリー送信する。"""
     from src.store.local_store import LocalStore
     store = LocalStore()
-    events = store.get_upcoming(days=14)
+    events = store.get_upcoming(days=days)
     if not events:
-        typer.echo("直近 14 日以内の予定はありません")
+        typer.echo(f"直近 {days} 日以内の予定はありません")
         return
     config = load_config()
     notifier = WeeklySummaryNotifier(webhook_url=config.env.discord_webhook_url or "")
