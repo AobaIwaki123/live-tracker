@@ -24,6 +24,26 @@ cp .env.example .env  # シークレットを記入
 uv run scrapling install
 ```
 
+## アーティストの追加手順
+
+1. `config/artists.yaml` に `name` と `base_url` を追記する:
+
+```yaml
+artists:
+  - name: アーティスト名   # 英数字・ハイフン推奨（ログ・通知に表示）
+    base_url: https://example.com/schedule
+```
+
+2. `analyze` を実行してサイト構造を AI に解析させる:
+
+```bash
+uv run python src/main.py analyze --artist アーティスト名
+```
+
+これだけで `config/artists.yaml` に scrape に必要な設定が自動生成される。
+
+> **再解析したい場合**: `--force` を付けると `analyzed_at` を無視して再解析する。
+
 ## 使い方
 
 ```bash

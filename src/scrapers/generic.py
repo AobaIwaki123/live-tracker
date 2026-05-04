@@ -388,13 +388,17 @@ class GenericScraper(BaseScraper):
         return events
 
     def _get_text(self, container: Any, selector: str) -> str:
-        """Return stripped text of the first match, or '' if nothing matched."""
+        """Return stripped text of the first match, or '' if nothing matched.
+
+        Uses ``get_all_text()`` to capture text across nested child elements
+        (e.g. content separated by ``<br>`` or wrapped in ``<b>``).
+        """
         if not selector:
             return ""
         try:
             elements = container.css(selector)
             if elements:
-                return (elements[0].text or "").strip()
+                return elements[0].get_all_text(separator="\n").strip()
         except Exception as exc:
             logger.debug("CSS selector %r raised: %s", selector, exc)
         return ""
@@ -415,8 +419,10 @@ class GenericScraper(BaseScraper):
     def _resolve_field(self, container: Any, selectors: dict[str, str], key: str) -> str:
         """Resolve a field value from a selector.
 
-        Supports ``::attr(name)`` pseudo-element suffix for attribute extraction,
-        otherwise returns text content.
+        Supports three pseudo-element suffixes:
+        - ``::attr(name)`` — extract the named HTML attribute.
+        - ``::regex(pattern)`` — apply a regex to the text; returns group(1) if present.
+        - (none) — return the text content.
 
         Args:
             container: Scrapling の要素またはページオブジェクト。
@@ -426,6 +432,8 @@ class GenericScraper(BaseScraper):
         Returns:
             抽出したフィールド値。セレクタ未設定や未マッチの場合は空文字。
         """
+        import re
+
         selector = selectors.get(key, "")
         if not selector:
             return ""
@@ -435,6 +443,16 @@ class GenericScraper(BaseScraper):
             css_part = selector[:attr_start]
             attr_name = selector[attr_start + 7:].rstrip(")")
             return self._get_attr(container, css_part, attr_name)
+
+        if "::regex(" in selector:
+            regex_start = selector.index("::regex(")
+            css_part = selector[:regex_start]
+            pattern = selector[regex_start + 8:-1]  # strip only the final closing )
+            text = self._get_text(container, css_part)
+            m = re.search(pattern, text)
+            if m:
+                return m.group(1).strip() if m.lastindex else m.group(0).strip()
+            return ""
 
         return self._get_text(container, selector)
 

@@ -50,7 +50,7 @@ class ClaudeProvider(AIProvider):
 
 
 class GeminiProvider(AIProvider):
-    """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.0-flash）。"""
+    """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.5-flash）。"""
 
     def __init__(self, api_key: str) -> None:
         from google import genai
@@ -68,7 +68,7 @@ class GeminiProvider(AIProvider):
         """
         from google import genai  # noqa: F401 — keep import for type resolution
         response = self.client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=f"{system}\n\n{user}",
         )
         return response.text or ""
