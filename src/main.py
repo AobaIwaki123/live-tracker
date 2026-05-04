@@ -109,7 +109,12 @@ def scrape(
                 _print_events(events)
                 continue
 
-            created, updated = NotionClient().upsert_events(events)
+            if config.env.notion_token and config.env.notion_database_id:
+                created, updated = NotionClient().upsert_events(events)
+            else:
+                logger.warning("NOTION_TOKEN / NOTION_DATABASE_ID 未設定のため Notion 書き込みをスキップします")
+                created, updated = [], []
+
             notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
             notifier.notify_batch(created=created, updated=updated)
             _log_summary(artist_config.name, created, updated, len(events))
