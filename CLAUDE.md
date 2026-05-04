@@ -10,6 +10,8 @@ Python CLI tool that scrapes idol artist live event schedules from official webs
 
 ## Setup
 
+依存関係は `pyproject.toml` で管理（Python 3.10+、uv 必須）。
+
 ```bash
 uv sync
 cp .env.example .env  # then fill in secrets
