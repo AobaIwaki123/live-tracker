@@ -205,7 +205,7 @@ class LocalStore:
 
     def upsert_many_diff(
         self, events: list[LiveEvent]
-    ) -> tuple[list[LiveEvent], list[LiveEvent]]:
+    ) -> tuple[list[LiveEvent], list[tuple[LiveEvent, dict]]]:
         """upsert を実行し、新規と更新を分けて返す。
 
         重複判定キー ``(artist, title, date)`` が DB に存在しなければ新規、
@@ -217,7 +217,7 @@ class LocalStore:
         Returns:
             ``(created, updated)`` のタプル。
             ``created``: 今回初めて登録したイベント。
-            ``updated``: 既存レコードで 1 つ以上のフィールドが変化したイベント。
+            ``updated``: ``[(event, diff), ...]`` — 変化したフィールド名と新値の辞書を伴う更新イベント。
         """
         if not events:
             return [], []
@@ -232,7 +232,7 @@ class LocalStore:
         }
 
         created: list[LiveEvent] = []
-        updated: list[LiveEvent] = []
+        updated: list[tuple[LiveEvent, dict]] = []
 
         for event in events:
             key = event.identity_key()
@@ -240,12 +240,13 @@ class LocalStore:
                 created.append(event)
             else:
                 prev = existing[key]
-                changed = any(
-                    getattr(event, f) and getattr(event, f) != getattr(prev, f)
+                diff = {
+                    f: getattr(event, f)
                     for f in _COMPARABLE_FIELDS
-                )
-                if changed:
-                    updated.append(event)
+                    if getattr(event, f) and getattr(event, f) != getattr(prev, f)
+                }
+                if diff:
+                    updated.append((event, diff))
 
         self.upsert_many(events)
         return created, updated

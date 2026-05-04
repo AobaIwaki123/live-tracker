@@ -174,6 +174,7 @@ class WeeklySummaryNotifier:
             return
 
         today = date.today()
+        week_start = today - timedelta(days=(today.weekday() + 1) % 7)
         week_groups = self._group_by_week(dated, today)
 
         if new_count is None:
@@ -186,7 +187,7 @@ class WeeklySummaryNotifier:
         # Build per-week blocks
         week_nums = sorted(week_groups.keys())
         week_blocks: list[str] = [
-            self._format_week_block(wn, week_groups[wn]) for wn in week_nums
+            self._format_week_block(wn, week_groups[wn], week_start) for wn in week_nums
         ]
 
         # Send messages, splitting at week boundaries when > 2000 chars
@@ -226,8 +227,7 @@ class WeeklySummaryNotifier:
         Returns:
             ``{week_num: [LiveEvent, ...]}`` の辞書。week_num は 1 始まり。
         """
-        # Monday of today's week
-        week_start = today - timedelta(days=today.weekday())
+        week_start = today - timedelta(days=(today.weekday() + 1) % 7)
 
         groups: dict[int, list[LiveEvent]] = defaultdict(list)
         for event in events:
@@ -243,11 +243,12 @@ class WeeklySummaryNotifier:
         self,
         week_num: int,
         events: list[LiveEvent],
+        week_start: date,
     ) -> str:
         """1 週分のテキストブロックを生成する。
 
         ブロック構造:
-        ``▍ Week N  M/D (曜) 〜 M/D (曜)``
+        ``▍ Week N  M/D (日) 〜 M/D (土)``
         ``━━━━━━━━━━━━━━━━━━━━━━━━━━━━━``
         （空行）
         日付ブロック × n
@@ -255,17 +256,17 @@ class WeeklySummaryNotifier:
         Args:
             week_num: 相対週番号（1 始まり）。
             events: この週に属するイベントのリスト（日付昇順）。
+            week_start: 週 1 の日曜日の日付。
 
         Returns:
             週ブロックのテキスト文字列。
         """
-        dates_in_week = sorted({e.date for e in events if e.date is not None})
-        first_date = dates_in_week[0]
-        last_date = dates_in_week[-1]
+        sunday = week_start + timedelta(days=(week_num - 1) * 7)
+        saturday = sunday + timedelta(days=6)
 
         header = (
-            f"▍ Week {week_num}  {_format_date_short(first_date)}"
-            f" 〜 {_format_date_short(last_date)}"
+            f"▍ Week {week_num}  {_format_date_short(sunday)}"
+            f" 〜 {_format_date_short(saturday)}"
         )
         lines: list[str] = [header, _SEPARATOR_HEAVY, ""]
 

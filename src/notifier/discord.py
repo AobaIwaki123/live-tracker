@@ -148,13 +148,14 @@ class DiscordNotifier:
             "source_url":    "ソース URL",
             "fetch_status":  "取得ステータス",
         }
-        updated_fields = [
-            field_labels.get(k, k)
-            for k in diff
+        updated_entries = [
+            f"{field_labels.get(k, k)}: {v}"
+            for k, v in diff.items()
             if k != "fetch_status"
         ]
-        if updated_fields:
-            lines.append(f"✅ 更新された情報: {', '.join(updated_fields)}")
+        if updated_entries:
+            lines.append("✅ 更新された情報:")
+            lines.extend(f"　• {entry}" for entry in updated_entries)
 
         lines.append("")
         if event.source_url:
