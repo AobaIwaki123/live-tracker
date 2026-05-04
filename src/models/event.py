@@ -22,6 +22,7 @@ class LiveEvent:
         other_artists: 出演アーティスト。Tier 2〜3。
         poster_url: ポスター画像 URL。Tier 2 詳細ページ。
         source_url: スクレイピング元 URL。config + Tier 1。
+        id: API レスポンスから取得した外部 ID。api_endpoint タイプで使用。
         fetch_status: 取得完了度。詳細取得済み / 詳細一部取得 / タイトル・日付のみ。
     """
 
@@ -36,6 +37,7 @@ class LiveEvent:
     other_artists: str = ""
     poster_url: str = ""
     source_url: str = ""
+    id: str = ""
     fetch_status: str = field(init=False)
 
     def __post_init__(self) -> None:

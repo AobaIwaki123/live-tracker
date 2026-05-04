@@ -5,13 +5,12 @@ import logging
 from datetime import date, datetime
 from typing import Any
 
-from src.config import ArtistConfig
+from src.config import ArtistConfig, DetailConfig
 from src.models.event import LiveEvent
 from src.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-# Date formats to try when parsing Japanese/ISO date strings
 _DATE_FORMATS = [
     "%Y年%m月%d日",
     "%Y/%m/%d",
@@ -32,42 +31,219 @@ def _parse_date(raw: str) -> date | None:
 
 
 class GenericScraper(BaseScraper):
-    """設定ドリブンの汎用 HTML スクレイパー。
+    """設定ドリブンの汎用スクレイパー。
 
-    ``ArtistConfig.selectors`` の CSS セレクタを使ってイベントを抽出する。
-    現在は ``navigation.type == 'single_page'`` のみをサポートする。
+    ``navigation.type`` に応じて HTML スクレイピングまたは API 呼び出しを行う。
+    現在サポートするタイプ: ``single_page``, ``api_endpoint``。
     """
 
     def scrape(self, config: ArtistConfig) -> list[LiveEvent]:
-        """Scrape live events using the CSS selectors in ArtistConfig.
+        """Scrape live events using the ArtistConfig.
 
         Args:
-            config: 対象アーティストの設定。``navigation.type`` が
-                ``single_page`` 以外の場合は NotImplementedError を送出する。
+            config: 対象アーティストの設定。
 
         Returns:
             抽出した LiveEvent リスト。取得失敗時は空リスト。
 
         Raises:
-            NotImplementedError: ``navigation.type`` が ``single_page`` 以外のとき。
+            NotImplementedError: ``navigation.type`` が未実装のとき。
         """
         nav_type = config.navigation.type
-        if nav_type != "single_page":
-            raise NotImplementedError(
-                f"navigation.type '{nav_type}' is not yet supported. "
-                "Only 'single_page' is implemented in this version."
-            )
 
-        page = self._fetch_static(config.base_url)
-        if page is None:
+        if nav_type == "api_endpoint":
+            return self._scrape_api(config)
+
+        if nav_type == "single_page":
+            page = self._fetch_page(config.base_url, config.fetch.dynamic)
+            if page is None:
+                return []
+            return self._parse_events(page, config)
+
+        raise NotImplementedError(
+            f"navigation.type '{nav_type}' is not yet supported. "
+            "Supported types: 'single_page', 'api_endpoint'."
+        )
+
+    def _scrape_api(self, config: ArtistConfig) -> list[LiveEvent]:
+        """api_endpoint タイプのスクレイピングを実行する。
+
+        Args:
+            config: 対象アーティストの設定。
+
+        Returns:
+            全ターゲット分の LiveEvent リスト。
+        """
+        from src.scrapers.url_generator import generate_targets
+
+        targets = generate_targets(config)
+        all_events: list[LiveEvent] = []
+        for target in targets:
+            raw_list = self._call_api(target, config.response.array_path)
+            events = self._map_api_response(raw_list, config.response.mapping, config.name)
+            if config.detail.enabled:
+                events = [
+                    self._fetch_detail(e, config.detail, config.base_url)
+                    for e in events
+                ]
+            all_events.extend(events)
+        return all_events
+
+    def _call_api(self, target: Any, array_path: str = "") -> list[dict]:
+        """HTTP リクエストを送信し JSON 配列を返す。
+
+        Args:
+            target: ScrapeTarget。``target.api`` が設定されている前提。
+            array_path: ルートが配列でない場合の配列へのパス（ドット区切り）。
+
+        Returns:
+            JSON 配列。取得失敗時は空リスト。
+        """
+        import httpx
+
+        if target.api is None:
             return []
 
-        return self._parse_events(page, config)
+        api = target.api
+        try:
+            if api.method.upper() == "POST":
+                resp = httpx.post(api.url, json=api.body, timeout=30)
+            else:
+                resp = httpx.get(api.url, params=api.body, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            if array_path:
+                for key in array_path.split("."):
+                    data = data[key]
+            if isinstance(data, list):
+                return data
+            logger.warning("API response is not a list for %s", api.url)
+            return []
+        except Exception as exc:
+            logger.error("API request failed for %s: %s", api.url, exc)
+            return []
+
+    def _map_api_response(
+        self, raw: list[dict], mapping: dict[str, str], artist: str
+    ) -> list[LiveEvent]:
+        """response.mapping 設定に従い dict → LiveEvent 変換する。
+
+        ``mapping`` の構造: LiveEvent フィールド名 → JSON キー名。
+        ``date_format`` は特別キーとして日付パースフォーマットに使用する。
+
+        Args:
+            raw: API レスポンスの JSON 配列。
+            mapping: LiveEvent フィールド名 → JSON キー名の辞書。
+            artist: アーティスト識別子。
+
+        Returns:
+            変換後の LiveEvent リスト。変換失敗した要素はスキップ。
+        """
+        date_fmt = mapping.get("date_format", "")
+        events: list[LiveEvent] = []
+        for item in raw:
+            try:
+                title = str(item.get(mapping.get("title", "title"), "") or "").strip()
+                if not title:
+                    logger.debug("Skipping item with empty title")
+                    continue
+
+                date_raw = str(item.get(mapping.get("date", "date"), "") or "").strip()
+                if date_fmt:
+                    try:
+                        parsed_date = datetime.strptime(date_raw, date_fmt).date()
+                    except ValueError:
+                        parsed_date = _parse_date(date_raw)
+                else:
+                    parsed_date = _parse_date(date_raw)
+
+                event_id = str(item.get(mapping.get("id", "id"), "") or "").strip()
+
+                events.append(LiveEvent(
+                    title=title,
+                    artist=artist,
+                    date=parsed_date,
+                    id=event_id,
+                ))
+            except Exception as exc:
+                logger.debug("Skipping item due to mapping error: %s", exc)
+        return events
+
+    def _fetch_detail(
+        self, event: LiveEvent, detail_config: DetailConfig, base_url: str
+    ) -> LiveEvent:
+        """詳細ページへアクセスし追加フィールドを補完する。
+
+        Args:
+            event: 補完対象の LiveEvent。
+            detail_config: 詳細ページ取得設定。
+            base_url: アーティスト設定の base_url。URL パターン展開に使用。
+
+        Returns:
+            フィールド補完後の LiveEvent。取得失敗時は元の event をそのまま返す。
+        """
+        if not event.id:
+            return event
+
+        date_str = event.date.strftime("%Y-%m-%d") if event.date else ""
+        url = (
+            detail_config.url_pattern
+            .replace("{base_url}", base_url)
+            .replace("{id}", event.id)
+            .replace("{date}", date_str)
+        )
+
+        page = self._fetch_static(url)
+        if page is None:
+            return event
+
+        selectors = detail_config.selectors
+        venue = self._resolve_field(page, selectors, "venue") or event.venue
+        start_time = self._resolve_field(page, selectors, "start_time") or event.start_time
+        ticket_url = self._resolve_field(page, selectors, "ticket_url") or event.ticket_url
+        other_artists = self._resolve_field(page, selectors, "other_artists") or event.other_artists
+        poster_url = self._resolve_field(page, selectors, "poster_url") or event.poster_url
+
+        from dataclasses import replace
+        return replace(
+            event,
+            venue=venue,
+            start_time=start_time,
+            ticket_url=ticket_url,
+            other_artists=other_artists,
+            poster_url=poster_url,
+            source_url=url,
+        )
+
+    def _fetch_page(self, url: str, dynamic: bool) -> Any | None:
+        """static または dynamic フェッチャーでページを取得する。
+
+        Args:
+            url: 取得対象 URL。
+            dynamic: True のとき Playwright ベースの DynamicFetcher を使用する。
+
+        Returns:
+            ``.css()`` セレクタ呼び出し可能な Page オブジェクト、またはエラー時 None。
+        """
+        if dynamic:
+            try:
+                from scrapling.fetchers import DynamicFetcher
+
+                page = DynamicFetcher().fetch(url, timeout=30000)
+                return page
+            except Exception as exc:
+                logger.error("DynamicFetcher failed for %s: %s", url, exc)
+                return None
+        return self._fetch_static(url)
 
     def _fetch_static(self, url: str) -> Any | None:
         """Fetch a page using Scrapling's static Fetcher.
 
-        Returns the page object, or None if an error occurs.
+        Args:
+            url: 取得対象 URL。
+
+        Returns:
+            Page オブジェクト、またはエラー時 None。
         """
         try:
             from scrapling.fetchers import Fetcher
@@ -86,7 +262,12 @@ class GenericScraper(BaseScraper):
         - ``title``, ``date``, ``venue``, ``start_time``, ``ticket_url``,
           ``poster_url``, ``other_artists`` (all optional except ``event_list``)
 
-        If a selector finds nothing the field is set to ``""`` (never raises).
+        Args:
+            page: Scrapling の Page オブジェクト。
+            config: 対象アーティストの設定。
+
+        Returns:
+            抽出した LiveEvent リスト。
         """
         selectors = config.selectors
 
@@ -144,13 +325,20 @@ class GenericScraper(BaseScraper):
 
         Supports ``::attr(name)`` pseudo-element suffix for attribute extraction,
         otherwise returns text content.
+
+        Args:
+            container: Scrapling の要素またはページオブジェクト。
+            selectors: CSS セレクタ辞書。
+            key: 取得するフィールド名。
+
+        Returns:
+            抽出したフィールド値。セレクタ未設定や未マッチの場合は空文字。
         """
         selector = selectors.get(key, "")
         if not selector:
             return ""
 
         if "::attr(" in selector:
-            # e.g. "a.ticket::attr(href)"
             attr_start = selector.index("::attr(")
             css_part = selector[:attr_start]
             attr_name = selector[attr_start + 7:].rstrip(")")
@@ -161,14 +349,21 @@ class GenericScraper(BaseScraper):
     def _parse_single_event(
         self, container: Any, config: ArtistConfig
     ) -> LiveEvent | None:
-        """Parse one event container element into a LiveEvent."""
+        """Parse one event container element into a LiveEvent.
+
+        Args:
+            container: 1 イベント分の要素コンテナ。
+            config: 対象アーティストの設定。
+
+        Returns:
+            LiveEvent、またはタイトルが取得できない場合は None。
+        """
         selectors = config.selectors
 
         title = self._resolve_field(container, selectors, "title")
         date_raw = self._resolve_field(container, selectors, "date")
         parsed_date = _parse_date(date_raw) if date_raw else None
 
-        # title is required; skip container if absent
         if not title:
             logger.debug("Skipping container with empty title under '%s'", config.name)
             return None
