@@ -131,7 +131,11 @@ def enrich(
     artist: str | None = typer.Option(None, "--artist", help="特定アーティストのみ処理"),
 ) -> None:
     """欠損フィールドを AI で補完する（opt-in）。"""
-    enricher = Enricher()
+    try:
+        enricher = Enricher()
+    except EnvironmentError as exc:
+        typer.echo(f"初期化エラー: {exc}", err=True)
+        raise typer.Exit(code=1)
     enricher.run(artist_filter=artist)
 
 

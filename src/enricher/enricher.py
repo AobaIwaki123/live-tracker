@@ -108,8 +108,14 @@ class Enricher:
         notion_client: NotionClient | None = None,
         ai_provider: AIProvider | None = None,
     ) -> None:
-        self._notion = notion_client or NotionClient()
-        self._ai = ai_provider or get_ai_provider()
+        try:
+            self._notion = notion_client or NotionClient()
+        except Exception as exc:
+            raise EnvironmentError(f"NotionClient の初期化に失敗しました: {exc}") from exc
+        try:
+            self._ai = ai_provider or get_ai_provider()
+        except Exception as exc:
+            raise EnvironmentError(f"AIProvider の初期化に失敗しました: {exc}") from exc
 
     def enrich(self, event: LiveEvent) -> dict[str, str]:
         """空欄フィールドをチケットサイト検索で補完して差分辞書を返す。

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python CLI tool that scrapes idol artist live event schedules from official websites and syncs them to a Notion database, with Discord notifications. Uses Claude/Gemini API to automatically analyze unfamiliar website structures from just a `base_url`.
 
-**Status:** Design complete, implementation in progress. `src/` is currently empty; `docs/` contains the full specification.
+**Status:** 全モジュール実装済み。`docs/` に仕様書、`src/` に実装、`config/artists.yaml` に設定ファイル。
 
 ## Setup
 
@@ -36,17 +36,18 @@ uv pip list --outdated  # アップデート確認
 - `scrapling[all]` の推移的依存（playwright / patchright）は scrapling 側が exact pin しているため、scrapling 本体のアップデートを待つ。
 
 Required env vars in `.env`:
-- `NOTION_TOKEN`, `NOTION_DATABASE_ID`
-- `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`
+- `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` (少なくとも一方が必須)
+- `NOTION_TOKEN`, `NOTION_DATABASE_ID` (Notion 連携を使う場合のみ)
 - `DISCORD_WEBHOOK_URL` (optional)
 - `AI_PROVIDER=auto` (auto|claude|gemini)
 
-## CLI Commands (to be implemented in `src/main.py`)
+## CLI Commands
 
 ```bash
 uv run python src/main.py analyze [--artist NAME] [--force]   # Phase 1: AI analyzes site, writes YAML config
-uv run python src/main.py scrape  [--artist NAME] [--dry-run]  # Phase 2: scrape events → Notion + Discord
+uv run python src/main.py scrape  [--artist NAME] [--dry-run]  # Phase 2: scrape events → SQLite + Notion + Discord
 uv run python src/main.py enrich  [--artist NAME]              # Phase 3: AI fills missing fields
+uv run python src/main.py summary                              # 直近 14 日のサマリーを Discord に送信
 ```
 
 ## Architecture
@@ -131,18 +132,22 @@ Tier 3: AI エンリッチメント    → ticket_price / prefecture（enrich �
 
 ---
 
-## Module Layout (target)
+## Module Layout
 
 ```
 src/
-├── main.py            # CLI entry point (analyze/scrape/enrich subcommands)
+├── main.py            # CLI entry point (analyze/scrape/enrich/summary subcommands)
 ├── config.py          # load_config(), ArtistConfig, AppConfig
 ├── models/event.py    # LiveEvent dataclass — dedup key: (artist, title, date)
 ├── ai/provider.py     # AIProvider ABC + ClaudeProvider + GeminiProvider
 ├── analyzer/          # site_analyzer.py (capture + AI call), config_writer.py
 ├── scrapers/          # base.py, url_generator.py, generic.py
 ├── notion/client.py   # fetch_all, create, update, upsert_events
-├── notifier/discord.py
+├── notifier/
+│   ├── discord.py         # Discord Webhook 通知（新規・更新イベント）
+│   └── weekly_summary.py  # Discord 週次サマリー送信
+├── store/
+│   └── local_store.py     # ローカル SQLite イベントキャッシュ
 └── enricher/enricher.py
 ```
 
@@ -192,6 +197,8 @@ def func(self, arg: Type) -> ReturnType:
    - `src/analyzer/` → `docs/basic-design.md` § SiteAnalyzer, `docs/tasks/task-6/`
    - `src/scrapers/` → `docs/basic-design.md` § URLGenerator / GenericScraper, `docs/tasks/task-3/`
    - `src/notifier/discord.py` → `docs/requirements.md` § FR-04
+   - `src/notifier/weekly_summary.py` → `docs/tasks/task-8/unit_2.md`
+   - `src/store/local_store.py` → `docs/tasks/task-8/unit_1.md`
    - `src/enricher/enricher.py` → `docs/requirements.md` § FR-06
 4. **`_` プレフィックスの関数・クラスは docstring 不要** — pdoc の出力から除外される。
 
