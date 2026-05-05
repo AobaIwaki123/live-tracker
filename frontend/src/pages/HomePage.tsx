@@ -1,63 +1,27 @@
-import { useMemo } from "react";
-import { Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Music2, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAllEvents, type AllEvent } from "@/hooks/useAllEvents";
-import EventListItem from "@/components/events/EventListItem";
-import MonthSection from "@/components/events/MonthSection";
-import PastEventsCollapse from "@/components/events/PastEventsCollapse";
-
-const MONTH_LABELS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
-
-function groupByMonth(events: AllEvent[]): [string, AllEvent[]][] {
-  const map = new Map<string, AllEvent[]>();
-  for (const event of events) {
-    const key = event.date
-      ? `${new Date(event.date).getFullYear()}-${String(new Date(event.date).getMonth() + 1).padStart(2, "0")}`
-      : "undated";
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(event);
-  }
-  return [...map.entries()];
-}
-
-function monthLabel(key: string): string {
-  if (key === "undated") return "日付未定";
-  const [year, month] = key.split("-");
-  return `${year}年${MONTH_LABELS[parseInt(month, 10) - 1]}`;
-}
+import { useArtists } from "@/hooks/useArtists";
 
 export default function HomePage() {
-  const { data: events, isLoading, error } = useAllEvents();
-
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  const { upcoming, past } = useMemo(() => {
-    if (!events) return { upcoming: [] as AllEvent[], past: [] as AllEvent[] };
-    const upcoming = events.filter((e) => !e.date || new Date(e.date) >= today);
-    const past = events.filter((e) => !!e.date && new Date(e.date) < today);
-    return { upcoming, past };
-  }, [events, today]);
-
-  const upcomingGroups = useMemo(() => groupByMonth(upcoming), [upcoming]);
+  const { data: artists, isLoading, error } = useArtists();
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8 space-y-3">
-        {[...Array(6)].map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-xl" />
-        ))}
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <h2 className="text-base font-semibold text-destructive mb-3">バックエンドに接続できません</h2>
+      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
+        <h2 className="text-xl font-bold text-destructive mb-4">バックエンドに接続できません</h2>
         <code className="text-sm bg-muted px-4 py-2 rounded-lg inline-block">
           uv run uvicorn src.web.app:app --reload
         </code>
@@ -65,57 +29,59 @@ export default function HomePage() {
     );
   }
 
-  if (!events || events.length === 0) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-        <Calendar className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-        <h3 className="font-medium mb-1">イベント情報なし</h3>
-        <p className="text-sm text-muted-foreground">次のスクレイプ後に更新されます</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="space-y-8">
-        {upcomingGroups.map(([key, monthEvents]) => (
-          <MonthSection key={key} label={monthLabel(key)}>
-            {monthEvents.map((event, i) => (
-              <EventListItem
-                key={`${event.artist}-${i}`}
-                title={event.title}
-                date={event.date}
-                venue={event.venue}
-                start_time={event.start_time}
-                ticket_url={event.ticket_url}
-                source_url={event.source_url}
-                themeColor={event.theme_color}
-                showArtistBar={true}
-                artistDisplayName={event.display_name}
-                artistImageUrl={event.image_url}
-              />
-            ))}
-          </MonthSection>
-        ))}
-      </div>
+    <div className="mx-auto max-w-5xl px-4 py-12">
+      <header className="mb-12 text-center">
+        <h1 className="text-4xl font-black tracking-tight mb-4 bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
+          アーティスト
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+          ライブ情報をチェックしたいアーティストを選択してください。
+        </p>
+      </header>
 
-      <PastEventsCollapse count={past.length}>
-        {past.map((event, i) => (
-          <EventListItem
-            key={`past-${event.artist}-${i}`}
-            title={event.title}
-            date={event.date}
-            venue={event.venue}
-            start_time={event.start_time}
-            ticket_url={event.ticket_url}
-            source_url={event.source_url}
-            themeColor={event.theme_color}
-            showArtistBar={true}
-            artistDisplayName={event.display_name}
-            artistImageUrl={event.image_url}
-          />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {artists?.map((artist) => (
+          <Link
+            key={artist.name}
+            to={`/artist/${artist.name}`}
+            className="group relative flex flex-col overflow-hidden rounded-2xl bg-card border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/20"
+          >
+            <div className="aspect-[16/10] overflow-hidden">
+              <img
+                src={artist.image_url}
+                alt={artist.display_name}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+              <div 
+                className="absolute inset-0 opacity-20 group-hover:opacity-10 transition-opacity" 
+                style={{ backgroundColor: artist.theme_color }}
+              />
+            </div>
+            
+            <div className="flex flex-1 items-center justify-between p-6">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-1.5 h-6 rounded-full shrink-0"
+                  style={{ backgroundColor: artist.theme_color || "var(--primary)" }}
+                />
+                <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
+                  {artist.display_name}
+                </h3>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+          </Link>
         ))}
-      </PastEventsCollapse>
+
+        {!artists || artists.length === 0 && (
+          <div className="col-span-full py-24 text-center bg-muted/30 rounded-3xl border-2 border-dashed">
+            <Music2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-bold mb-2">アーティストが登録されていません</h3>
+            <p className="text-muted-foreground">config/artists.yaml を確認してください</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

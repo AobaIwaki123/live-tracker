@@ -1,64 +1,51 @@
 import { Link, useLocation } from "react-router-dom";
-import { Music, Sun, Moon } from "lucide-react";
-import { useArtists } from "@/hooks/useArtists";
+import { Music, Sun, Moon, LayoutGrid } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const location = useLocation();
-  const { data: artists } = useArtists();
   const { isDark, toggle } = useDarkMode();
 
-  const currentArtistId = location.pathname.startsWith("/artist/")
-    ? location.pathname.replace("/artist/", "")
-    : null;
-
-  const tabClass = (active: boolean) =>
-    cn(
-      "rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap",
-      active
-        ? "bg-primary text-primary-foreground"
-        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-    );
+  const isHome = location.pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto max-w-3xl px-4">
-        <div className="flex h-14 items-center gap-3">
+    <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto max-w-5xl px-4">
+        <div className="flex h-16 items-center justify-between gap-4">
           <Link
             to="/"
-            className="flex items-center gap-1.5 shrink-0 font-semibold hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2.5 shrink-0 font-black text-xl hover:opacity-80 transition-all active:scale-95"
           >
-            <Music className="h-5 w-5" />
-            <span>Live Tracker</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              <Music className="h-5 w-5" />
+            </div>
+            <span className="hidden sm:inline tracking-tight">Live Tracker</span>
           </Link>
 
-          <div className="w-px h-5 bg-border shrink-0" />
-
-          <nav className="flex-1 overflow-x-auto scrollbar-none">
-            <div className="flex items-center gap-1 min-w-max">
-              <Link to="/" className={tabClass(!currentArtistId)}>
-                All
+          <div className="flex items-center gap-2">
+            {!isHome && (
+              <Link
+                to="/"
+                className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                アーティスト一覧
               </Link>
-              {artists?.map((artist) => (
-                <Link
-                  key={artist.name}
-                  to={`/artist/${artist.name}`}
-                  className={tabClass(currentArtistId === artist.name)}
-                >
-                  {artist.display_name}
-                </Link>
-              ))}
-            </div>
-          </nav>
+            )}
 
-          <button
-            onClick={toggle}
-            className="shrink-0 rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="テーマを切り替え"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
+            <button
+              onClick={toggle}
+              className="rounded-xl p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 border border-transparent hover:border-border"
+              aria-label="テーマを切り替え"
+            >
+              {isDark ? (
+                <Sun className="h-5 w-5 transition-all duration-300 rotate-0 scale-100" />
+              ) : (
+                <Moon className="h-5 w-5 transition-all duration-300 rotate-0 scale-100" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </header>

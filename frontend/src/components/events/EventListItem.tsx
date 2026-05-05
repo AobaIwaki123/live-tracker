@@ -22,7 +22,7 @@ function CountdownBadge({ label, variant }: { label: string; variant: string }) 
   return (
     <span
       className={cn(
-        "shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold whitespace-nowrap",
+        "shrink-0 inline-flex items-center rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap",
         variant === "today" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
         variant === "soon" && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
         variant === "upcoming" && "bg-secondary text-secondary-foreground",
@@ -55,80 +55,80 @@ export default function EventListItem({
   return (
     <div
       className={cn(
-        "relative flex rounded-xl border bg-card transition-shadow hover:shadow-sm",
-        isPast && "opacity-55"
+        "relative flex rounded-2xl border bg-card transition-all duration-200 hover:shadow-md hover:border-primary/20",
+        isPast && "opacity-60"
       )}
     >
       {showArtistBar && (
         <div
-          className="w-1 shrink-0 rounded-l-xl"
+          className="w-1.5 shrink-0 rounded-l-2xl"
           style={{ backgroundColor: accentColor }}
         />
       )}
 
-      <div className="flex gap-3 p-4 w-full min-w-0">
+      <div className="flex gap-5 p-5 w-full min-w-0">
         {/* Date block */}
-        <div className="flex flex-col items-center justify-start min-w-[44px] pt-0.5 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+        <div className="flex flex-col items-center justify-start min-w-[56px] pt-1 text-center">
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground leading-none">
             {dateObj ? MONTHS[dateObj.getMonth()] : "---"}
           </span>
           <span
-            className="text-2xl font-black leading-tight my-0.5"
+            className="text-3xl font-black leading-none my-1.5"
             style={{ color: isPast ? undefined : accentColor }}
           >
             {dateObj ? dateObj.getDate() : "--"}
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground leading-none">
             {dateObj ? DAYS[dateObj.getDay()] : "---"}
           </span>
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-sm leading-snug line-clamp-2 flex-1">{title}</h3>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h3 className="font-bold text-lg leading-tight line-clamp-2 flex-1 tracking-tight">{title}</h3>
             <CountdownBadge label={countdown.label} variant={countdown.variant} />
           </div>
 
           {showArtistBar && artistDisplayName && (
-            <div className="flex items-center gap-1.5 mt-1">
+            <div className="flex items-center gap-2 mb-3">
               {artistImageUrl && (
                 <img
                   src={artistImageUrl}
                   alt={artistDisplayName}
-                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                  className="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-border"
                 />
               )}
-              <span className="text-xs text-muted-foreground">{artistDisplayName}</span>
+              <span className="text-sm font-medium text-muted-foreground">{artistDisplayName}</span>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {venue && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3 shrink-0" />
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground/70" />
                 {venue}
               </span>
             )}
             {start_time && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3 shrink-0" />
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 shrink-0 text-muted-foreground/70" />
                 {start_time}
               </span>
             )}
           </div>
 
           {(ticket_url || source_url) && (
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-3 mt-4">
               {ticket_url && (
                 <a
                   href={ticket_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
                   style={{ backgroundColor: accentColor }}
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                   チケット
                 </a>
               )}
@@ -137,7 +137,7 @@ export default function EventListItem({
                   href={source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-4 py-1.5 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   公式サイト
                 </a>
