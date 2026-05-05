@@ -22,8 +22,22 @@ _DATE_FORMATS = [
 
 
 def _parse_date(raw: str) -> date | None:
-    """Try each known date format; return None if all fail."""
+    """Try each known date format or Unix timestamp; return None if all fail."""
     text = raw.strip()
+    if not text:
+        return None
+
+    # Try Unix timestamp (seconds or milliseconds)
+    if text.isdigit():
+        val = int(text)
+        try:
+            # If > 10^12, assume milliseconds
+            if val > 1000000000000:
+                return datetime.fromtimestamp(val / 1000).date()
+            return datetime.fromtimestamp(val).date()
+        except (ValueError, OSError):
+            pass
+
     for fmt in _DATE_FORMATS:
         try:
             return datetime.strptime(text, fmt).date()
@@ -31,6 +45,28 @@ def _parse_date(raw: str) -> date | None:
             continue
     logger.debug("date parse failed for %r", text)
     return None
+
+
+def _deep_get(data: Any, path: str, default: str = "") -> Any:
+    """ドット区切りパスでネストした辞書から値を取得する。
+
+    Args:
+        data: 対象辞書。
+        path: ドット区切りのキーパス（例: ``"title.content"``）。空文字は ``default`` を返す。
+        default: キーが存在しない場合の返り値。
+
+    Returns:
+        パスが示す値。途中でキーが見つからない場合は ``default``。
+    """
+    if not path:
+        return default
+    for key in path.split("."):
+        if not isinstance(data, dict):
+            return default
+        data = data.get(key, default)
+        if data is default:
+            return default
+    return data
 
 
 class GenericScraper(BaseScraper):
@@ -168,20 +204,97 @@ class GenericScraper(BaseScraper):
         Returns:
             全ターゲット分の LiveEvent リスト。
         """
+        from dataclasses import replace as dc_replace
+
         from src.scrapers.url_generator import generate_targets
 
-        targets = generate_targets(config)
+        # {version_dir} プレースホルダーが設定されている場合、base_url を取得して解決する
+        resolved_config = config
+        if "{version_dir}" in config.navigation.endpoint and config.navigation.version_dir_regex:
+            version_dir = self._extract_version_dir(config.base_url, config.navigation.version_dir_regex)
+            if version_dir:
+                new_nav = dc_replace(
+                    config.navigation,
+                    endpoint=config.navigation.endpoint.replace("{version_dir}", version_dir),
+                )
+                resolved_config = dc_replace(config, navigation=new_nav)
+            else:
+                logger.warning(
+                    "Artist '%s': could not extract version_dir from %s",
+                    config.name,
+                    config.base_url,
+                )
+
+        targets = generate_targets(resolved_config)
         all_events: list[LiveEvent] = []
+        seen: set[tuple[str, str, date | None]] = set()
+
         for target in targets:
-            raw_list = self._call_api(target, config.response.array_path)
-            events = self._map_api_response(raw_list, config.response.mapping, config.name)
-            if config.detail.enabled:
-                events = [
-                    self._fetch_detail(e, config.detail, config.base_url)
-                    for e in events
-                ]
-            all_events.extend(events)
+            raw_list = self._call_api(target, resolved_config.response.array_path)
+            raw_list = self._filter_raw_items(raw_list, resolved_config)
+            events = self._map_api_response(
+                raw_list, resolved_config.response.mapping, resolved_config.name
+            )
+            for event in events:
+                if resolved_config.detail.enabled:
+                    event = self._fetch_detail(
+                        event, resolved_config.detail, resolved_config.base_url
+                    )
+
+                key = event.identity_key()
+                if key not in seen:
+                    seen.add(key)
+                    all_events.append(event)
         return all_events
+
+    def _extract_version_dir(self, url: str, pattern: str) -> str | None:
+        """ページ HTML から正規表現でバージョンディレクトリ文字列を抽出する。
+
+        Args:
+            url: 取得先 URL（アーティストの base_url）。
+            pattern: バージョン文字列を抽出する正規表現。グループ 1 を使用。
+
+        Returns:
+            抽出したバージョン文字列。失敗時は None。
+        """
+        import re
+
+        import httpx
+
+        try:
+            resp = httpx.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30,
+                follow_redirects=True,
+            )
+            resp.raise_for_status()
+            match = re.search(pattern, resp.text)
+            if match:
+                return match.group(1)
+            logger.warning("version_dir_regex %r matched nothing in %s", pattern, url)
+            return None
+        except Exception as exc:
+            logger.error("Failed to extract version_dir from %s: %s", url, exc)
+            return None
+
+    def _filter_raw_items(self, items: list[dict], config: ArtistConfig) -> list[dict]:
+        """navigation 設定のフィルタ条件に従い生 JSON アイテムを絞り込む。
+
+        Args:
+            items: API レスポンスの JSON 配列。
+            config: アーティスト設定。
+
+        Returns:
+            絞り込み後のアイテムリスト。
+        """
+        nav = config.navigation
+        if nav.filter_category:
+            items = [i for i in items if i.get("category") == nav.filter_category]
+        if nav.filter_artist_ids:
+            id_set = set(nav.filter_artist_ids)
+            items = [i for i in items if id_set.intersection(i.get("artistsSearch", []))]
+        return items
 
     def _call_api(self, target: Any, array_path: str = "") -> list[dict]:
         """HTTP リクエストを送信し JSON 配列を返す。
@@ -201,9 +314,9 @@ class GenericScraper(BaseScraper):
         api = target.api
         try:
             if api.method.upper() == "POST":
-                resp = httpx.post(api.url, json=api.body, timeout=30)
+                resp = httpx.post(api.url, json=api.body, headers=api.headers, timeout=30)
             else:
-                resp = httpx.get(api.url, params=api.body, timeout=30)
+                resp = httpx.get(api.url, params=api.body, headers=api.headers, timeout=30)
             resp.raise_for_status()
             data = resp.json()
             if array_path:
@@ -223,6 +336,7 @@ class GenericScraper(BaseScraper):
         """response.mapping 設定に従い dict → LiveEvent 変換する。
 
         ``mapping`` の構造: LiveEvent フィールド名 → JSON キー名。
+        キー名に ``::regex(pattern)`` サフィックスを付けることで正規表現抽出が可能。
         ``date_format`` は特別キーとして日付パースフォーマットに使用する。
 
         Args:
@@ -233,16 +347,37 @@ class GenericScraper(BaseScraper):
         Returns:
             変換後の LiveEvent リスト。変換失敗した要素はスキップ。
         """
+        import re
+
         date_fmt = mapping.get("date_format", "")
         events: list[LiveEvent] = []
         for item in raw:
             try:
-                title = str(item.get(mapping.get("title", "title"), "") or "").strip()
+
+                def _resolve(key_path: str) -> str:
+                    if not key_path:
+                        return ""
+                    if "::regex(" in key_path:
+                        path, pattern = key_path.split("::regex(", 1)
+                        if pattern.endswith(")"):
+                            pattern = pattern[:-1]
+                        val = str(_deep_get(item, path) or "")
+                        m = re.search(pattern, val)
+                        if m:
+                            return (
+                                m.group(1).strip()
+                                if m.lastindex
+                                else m.group(0).strip()
+                            )
+                        return ""
+                    return str(_deep_get(item, key_path) or "").strip()
+
+                title = _resolve(mapping.get("title", "title"))
                 if not title:
                     logger.debug("Skipping item with empty title")
                     continue
 
-                date_raw = str(item.get(mapping.get("date", "date"), "") or "").strip()
+                date_raw = _resolve(mapping.get("date", "date"))
                 if date_fmt:
                     try:
                         parsed_date = datetime.strptime(date_raw, date_fmt).date()
@@ -251,14 +386,28 @@ class GenericScraper(BaseScraper):
                 else:
                     parsed_date = _parse_date(date_raw)
 
-                event_id = str(item.get(mapping.get("id", "id"), "") or "").strip()
+                event_id = _resolve(mapping.get("id", "id"))
+                venue = _resolve(mapping.get("venue", ""))
+                start_time = _resolve(mapping.get("start_time", ""))
+                ticket_url = _resolve(mapping.get("ticket_url", ""))
+                source_url = _resolve(mapping.get("source_url", ""))
+                other_artists = _resolve(mapping.get("other_artists", ""))
+                poster_url = _resolve(mapping.get("poster_url", ""))
 
-                events.append(LiveEvent(
-                    title=title,
-                    artist=artist,
-                    date=parsed_date,
-                    id=event_id,
-                ))
+                events.append(
+                    LiveEvent(
+                        title=title,
+                        artist=artist,
+                        date=parsed_date,
+                        id=event_id,
+                        venue=venue,
+                        start_time=start_time,
+                        ticket_url=ticket_url,
+                        source_url=source_url,
+                        other_artists=other_artists,
+                        poster_url=poster_url,
+                    )
+                )
             except Exception as exc:
                 logger.debug("Skipping item due to mapping error: %s", exc)
         return events

@@ -19,11 +19,13 @@ class ApiRequest:
         url: リクエスト先の完全 URL。
         method: HTTP メソッド（GET / POST など）。
         body: リクエストボディ。テンプレート展開済みの辞書。
+        headers: リクエストヘッダー。
     """
 
     url: str
     method: str
     body: dict[str, Any] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -44,17 +46,20 @@ class ScrapeTarget:
 
 
 def _expand(value: Any, *, month: datetime.date) -> Any:
-    """body_template の値を月情報でテンプレート展開する。
+    """body_template や endpoint の値を月情報でテンプレート展開する。
 
-    ``{month_start}`` をその月の初日（YYYY-MM-DD）、``{month_end}`` をその月の末日
-    （YYYY-MM-DD）に置換する。値が文字列でない場合はそのまま返す。
+    サポートするプレースホルダー:
+    - ``{month_start}``: YYYY-MM-DD
+    - ``{month_end}``: YYYY-MM-DD
+    - ``{month_start_ms}``: Unix タイムスタンプ（ミリ秒）
+    - ``{month_end_ms}``: Unix タイムスタンプ（ミリ秒）
 
     Args:
-        value: body_template の値。文字列以外はそのまま返す。
-        month: 展開基準となる月（日は任意、年・月のみ使用）。
+        value: テンプレート文字列（または任意の値）。
+        month: 展開基準となる月。
 
     Returns:
-        テンプレート展開後の値。文字列でなければ元の値をそのまま返す。
+        テンプレート展開後の文字列。文字列でなければ元の値をそのまま返す。
     """
     if not isinstance(value, str):
         return value
@@ -63,10 +68,20 @@ def _expand(value: Any, *, month: datetime.date) -> Any:
     last_day = calendar.monthrange(month.year, month.month)[1]
     month_end = month.replace(day=last_day)
 
+    # ミリ秒タイムスタンプ（日本時間 UTC+9 考慮のため 00:00:00 / 23:59:59 に合わせる）
+    # TimeTree の例では utc_offset=32400 (9h) が別途送られているため
+    # ここでは純粋な Unix タイムスタンプ（秒 * 1000）を生成する。
+    start_ts = int(datetime.datetime.combine(month_start, datetime.time.min).timestamp() * 1000)
+    end_ts = int(datetime.datetime.combine(month_end, datetime.time.max).timestamp() * 1000)
+
     return (
         value
         .replace("{month_start}", month_start.strftime("%Y-%m-%d"))
         .replace("{month_end}", month_end.strftime("%Y-%m-%d"))
+        .replace("{month_start_ms}", str(start_ts))
+        .replace("{month_end_ms}", str(end_ts))
+        .replace("{year}", str(month.year))
+        .replace("{month}", f"{month.month:02d}")
     )
 
 
@@ -128,19 +143,28 @@ def generate_targets(config: ArtistConfig) -> list[ScrapeTarget]:
             return [ScrapeTarget(url=config.base_url, follow_next=True)]
 
         case "api_endpoint":
-            return [
-                ScrapeTarget(
+            seen_urls: set[str] = set()
+            targets: list[ScrapeTarget] = []
+            for m in months:
+                expanded_endpoint = _expand(nav.endpoint, month=m)
+                # フルURLの場合はそのまま使用、相対パスの場合は origin を付与する
+                if expanded_endpoint.startswith("http://") or expanded_endpoint.startswith("https://"):
+                    api_url = expanded_endpoint
+                else:
+                    api_url = f"{config.base_url_origin}{expanded_endpoint}"
+                # 同一 URL への重複リクエストを排除（年次ファイル等）
+                if api_url in seen_urls:
+                    continue
+                seen_urls.add(api_url)
+                targets.append(ScrapeTarget(
                     api=ApiRequest(
-                        url=f"{config.base_url_origin}{nav.endpoint}",
+                        url=api_url,
                         method=nav.method,
-                        body={
-                            k: _expand(v, month=m)
-                            for k, v in nav.body_template.items()
-                        },
+                        body={k: _expand(v, month=m) for k, v in nav.body_template.items()},
+                        headers=nav.headers,
                     )
-                )
-                for m in months
-            ]
+                ))
+            return targets
 
         case _:
             raise ValueError(f"Unknown navigation type: {nav.type!r}")

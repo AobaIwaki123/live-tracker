@@ -33,7 +33,14 @@ def _print_events(events: list[LiveEvent]) -> None:
         typer.echo("  (イベントなし)")
         return
     for e in events:
-        typer.echo(f"  [{e.date}] {e.title} @ {e.venue or '会場未定'} ({e.fetch_status})")
+        time_str = f" {e.start_time}" if e.start_time else ""
+        typer.echo(f"  [{e.date}{time_str}] {e.title}")
+        typer.echo(f"    会場: {e.venue or '会場未定'}")
+        if e.ticket_url:
+            typer.echo(f"    リンク: {e.ticket_url}")
+        elif e.source_url:
+            typer.echo(f"    ソース: {e.source_url}")
+        typer.echo(f"    ステータス: {e.fetch_status}")
 
 
 def _log_summary(

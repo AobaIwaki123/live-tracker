@@ -63,3 +63,56 @@ artists:
     start_time: div.place span.s::regex(開演\s*(\d+:\d+))
   detail:
     enabled: false
+- name: jj
+  base_url: https://helloproject.com/juicejuice/schedule/?filterType=member&viewType=member&selectedEventsTypes=CONCERT
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: api_endpoint
+    endpoint: /json/{version_dir}/{year}_schedules.json
+    method: GET
+    body_template: {}
+    range_months: 3
+    version_dir_regex: '&quot;versionDir&quot;:\[0,&quot;([^&]+)&quot;\]'
+    filter_artist_ids:
+    - 36
+    filter_category: CONCERT
+  response:
+    format: json_object_with_array
+    array_path: items
+    mapping:
+      id: link.link
+      title: title.content
+      date: date
+      date_format: '%Y-%m-%d'
+      venue: note.content
+      start_time: schedule.start
+  detail:
+    enabled: false
+- name: ilife
+  base_url: https://timetreeapp.com/public_calendars/ilife_official
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: api_endpoint
+    endpoint: /api/v2/public_calendars/ilife_official/public_events?from={month_start_ms}&to={month_end_ms}&utc_offset=32400
+    method: GET
+    headers:
+      x-timetreea: web/2.1.0/en
+    range_months: 3
+  response:
+    format: json_object_with_array
+    array_path: public_events
+    mapping:
+      id: id
+      title: title
+      date: start_at
+      date_format: ''
+      venue: location_name
+      start_time: note::regex(開演時刻\s*(\d+:\d+))
+      ticket_url: link_url
+      source_url: url
+  detail:
+    enabled: false

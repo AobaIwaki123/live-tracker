@@ -54,6 +54,10 @@ class NavigationConfig:
     endpoint: str = ""
     method: str = "GET"
     body_template: dict[str, Any] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
+    version_dir_regex: str = ""
+    filter_artist_ids: list[int] = field(default_factory=list)
+    filter_category: str = ""
     # common
     range_months: int = 3
 
@@ -174,6 +178,10 @@ def _parse_artist(raw: dict[str, Any]) -> ArtistConfig:
             endpoint=nav_raw.get("endpoint", ""),
             method=nav_raw.get("method", "GET"),
             body_template=nav_raw.get("body_template", {}),
+            headers=nav_raw.get("headers", {}),
+            version_dir_regex=nav_raw.get("version_dir_regex", ""),
+            filter_artist_ids=nav_raw.get("filter_artist_ids", []),
+            filter_category=nav_raw.get("filter_category", ""),
             range_months=nav_raw.get("range_months", 3),
         ),
         response=ResponseConfig(

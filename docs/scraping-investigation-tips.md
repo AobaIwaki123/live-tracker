@@ -32,17 +32,25 @@ XHR リクエストのエンドポイント・メソッド・ボディ・レス�
 - POST ボディに月の範囲（`start`, `end` など）が含まれるか
 - レスポンスが JSON 配列か、オブジェクトの中に配列があるか
 - イベントの各フィールド名（`title`, `date`, `id` など）
-
 YAML に書く内容:
 ```yaml
 navigation:
   type: api_endpoint
-  endpoint: /api/schedule/get
-  method: POST
-  body_template:
-    start: '{month_start}'
-    end: '{month_end}'
+  endpoint: /api/v2/public_events?from={month_start_ms}&to={month_end_ms}
+  method: GET
+  headers:
+    x-custom-header: value
   range_months: 3
+```
+
+### サポートするプレースホルダー
+- `{month_start}`: YYYY-MM-DD
+- `{month_end}`: YYYY-MM-DD
+- `{month_start_ms}`: Unix タイムスタンプ（ミリ秒）
+- `{month_end_ms}`: Unix タイムスタンプ（ミリ秒）
+
+これらは `endpoint` 文字列および `body_template` 内で使用可能です。
+
 response:
   format: json_array          # or json_object_with_array
   array_path: ''              # json_object_with_array の場合はキー名
