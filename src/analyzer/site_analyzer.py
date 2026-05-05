@@ -28,12 +28,29 @@ HTML とネットワークログから、スケジュール情報の取得方法
 Navigation タイプの優先順位:
 api_endpoint > query_param > path_segment > pagination_links > single_page
 
+### ガイドライン
+1. **Astro/Next.js 等の動的URL**:
+   URLにハッシュ（例: `260505...-AbCd...`）が含まれる場合、それはビルドごとに変わる一時的なディレクトリです。
+   HTMLソースからその値を抽出するための正規表現を `navigation.version_dir_regex` に設定し、
+   `endpoint` 内で `{version_dir}` プレースホルダーを使用してください。
+2. **特殊なセレクタ記法**:
+   `selectors` や `response.mapping` の値では以下の記法が使用可能です。
+   - `::attr(name)`: 属性値を取得（例: `a::attr(href)`）
+   - `::regex(pattern)`: 正規表現で抽出。グループ1を優先（例: `p::regex(開演\s*(\d+:\d+))`）
+3. **APIレスポンスのネスト**:
+   `response.mapping` ではドット記法（例: `schedule.start`）を使用してネストしたフィールドを取得できます。
+4. **日付形式 (date_format)**:
+   - レスポンスが Unix タイムスタンプ（ミリ秒）の場合は、`date_format` を空文字列 `""` に設定してください。
+   - それ以外の場合は `%Y-%m-%d` 等の strftime 形式を指定してください。
+5. **混在したデータのフィルタリング**:
+   APIレスポンスに複数アーティストが混在している場合、`navigation.filter_artist_ids` や `navigation.filter_category` を活用して絞り込みを行ってください。
+
 重要: 必ず JSON のみを出力してください。説明文やコードブロック記法（```json など）は一切含めないこと。
 """
 
 # avam-fc.com の正解設定（Few-shot 例）
 _FEW_SHOT_EXAMPLE = """\
-### Few-shot 例: https://avam-fc.com/schedule
+### Few-shot 例 1: 標準的な API (https://avam-fc.com/schedule)
 
 ネットワークログに POST /api/schedule/get が含まれる場合の正解設定:
 ```json
@@ -52,10 +69,42 @@ _FEW_SHOT_EXAMPLE = """\
     "mapping": {"title": "title", "date": "reception_date", "date_format": "%Y-%m-%d"}
   },
   "selectors": {},
+  "detail": {"enabled": false}
+}
+```
+
+### Few-shot 例 2: Astro サイト & 特殊記法 (https://example.com/schedule)
+
+ネットワークログに `https://example.com/json/260505...-AbCd.../2026_schedules.json` があり、
+HTMLに `&quot;versionDir&quot;:&quot;260505...-AbCd...&quot;` が含まれる場合:
+```json
+{
+  "fetch": {"dynamic": false},
+  "navigation": {
+    "type": "api_endpoint",
+    "endpoint": "/json/{version_dir}/{year}_schedules.json",
+    "method": "GET",
+    "version_dir_regex": "&quot;versionDir&quot;:&quot;([^&]+)&quot;",
+    "range_months": 3
+  },
+  "response": {
+    "format": "json_object_with_array",
+    "array_path": "items",
+    "mapping": {
+      "id": "id",
+      "title": "title.content",
+      "date": "start_at",
+      "date_format": ""
+    }
+  },
+  "selectors": {},
   "detail": {
     "enabled": true,
-    "url_pattern": "{base_url}/detail/{id}?d={date}",
-    "selectors": {"venue": ".venue-name", "ticket_url": "a.ticket::attr(href)"}
+    "url_pattern": "{base_url_origin}/event/{id}",
+    "selectors": {
+      "venue": ".venue::regex(会場[:：]\s*(.+))",
+      "ticket_url": "a.ticket-link::attr(href)"
+    }
   }
 }
 ```
@@ -75,7 +124,11 @@ _OUTPUT_SCHEMA = """\
     // api_endpoint の場合のみ:
     "endpoint": string,       // 例: "/api/schedule/get"
     "method": "GET" | "POST",
+    "headers": object,        // オプション: 必要ならカスタムヘッダーを指定
     "body_template": object,  // POST ボディのテンプレート（{month_start}/{month_end} プレースホルダー使用可）
+    "version_dir_regex": string, // オプション: Astro等でHTMLからハッシュを抽出する場合
+    "filter_artist_ids": array,  // オプション: 数値配列。混在データからの絞り込み用
+    "filter_category": string,   // オプション: カテゴリ名。混在データからの絞り込み用
     // query_param の場合のみ:
     "param": string,
     "value_format": string,   // strftime 形式 例: "%Y-%m-%d"
