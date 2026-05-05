@@ -22,10 +22,10 @@ function CountdownBadge({ label, variant }: { label: string; variant: string }) 
   return (
     <span
       className={cn(
-        "shrink-0 inline-flex items-center rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap",
-        variant === "today" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-        variant === "soon" && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-        variant === "upcoming" && "bg-secondary text-secondary-foreground",
+        "shrink-0 inline-flex items-center rounded-full px-4 py-1.5 text-sm font-black whitespace-nowrap shadow-sm",
+        variant === "today" && "bg-red-500 text-white animate-pulse",
+        variant === "soon" && "bg-orange-500 text-white",
+        variant === "upcoming" && "bg-secondary text-secondary-foreground border border-border",
         variant === "past" && "bg-muted text-muted-foreground",
         variant === "unknown" && "bg-muted text-muted-foreground"
       )}
@@ -55,81 +55,81 @@ export default function EventListItem({
   return (
     <div
       className={cn(
-        "relative flex rounded-2xl border bg-card transition-all duration-200 hover:shadow-md hover:border-primary/20",
-        isPast && "opacity-60"
+        "relative flex rounded-[2rem] border bg-card transition-all duration-300 hover:shadow-xl hover:border-primary/30 group/item",
+        isPast && "opacity-60 grayscale-[0.5]"
       )}
     >
       {showArtistBar && (
         <div
-          className="w-1.5 shrink-0 rounded-l-2xl"
+          className="w-2 shrink-0 rounded-l-[2rem]"
           style={{ backgroundColor: accentColor }}
         />
       )}
 
-      <div className="flex gap-5 p-5 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row gap-6 p-7 w-full min-w-0">
         {/* Date block */}
-        <div className="flex flex-col items-center justify-start min-w-[56px] pt-1 text-center">
-          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground leading-none">
+        <div className="flex flex-row sm:flex-col items-center justify-center sm:justify-start gap-3 sm:gap-1.5 min-w-[72px] text-center border-b sm:border-b-0 sm:border-r border-border pb-4 sm:pb-0 sm:pr-6">
+          <span className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/60 leading-none">
             {dateObj ? MONTHS[dateObj.getMonth()] : "---"}
           </span>
           <span
-            className="text-3xl font-black leading-none my-1.5"
+            className="text-4xl font-black leading-none"
             style={{ color: isPast ? undefined : accentColor }}
           >
             {dateObj ? dateObj.getDate() : "--"}
           </span>
-          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground leading-none">
+          <span className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/60 leading-none">
             {dateObj ? DAYS[dateObj.getDay()] : "---"}
           </span>
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <h3 className="font-bold text-lg leading-tight line-clamp-2 flex-1 tracking-tight">{title}</h3>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
+            <h3 className="font-black text-2xl leading-tight line-clamp-2 tracking-tighter group-hover/item:text-primary transition-colors">{title}</h3>
             <CountdownBadge label={countdown.label} variant={countdown.variant} />
           </div>
 
           {showArtistBar && artistDisplayName && (
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2.5 mb-4 bg-muted/40 w-fit px-3 py-1.5 rounded-full border border-border/50">
               {artistImageUrl && (
                 <img
                   src={artistImageUrl}
                   alt={artistDisplayName}
-                  className="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-border"
+                  className="w-6 h-6 rounded-full object-cover shrink-0 ring-2 ring-background shadow-sm"
                 />
               )}
-              <span className="text-sm font-medium text-muted-foreground">{artistDisplayName}</span>
+              <span className="text-base font-black text-muted-foreground/80">{artistDisplayName}</span>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-lg text-muted-foreground font-medium mb-6">
             {venue && (
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+              <span className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 shrink-0 text-primary/60" />
                 {venue}
               </span>
             )}
             {start_time && (
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+              <span className="flex items-center gap-2">
+                <Clock className="h-5 w-5 shrink-0 text-primary/60" />
                 {start_time}
               </span>
             )}
           </div>
 
           {(ticket_url || source_url) && (
-            <div className="flex flex-wrap gap-3 mt-4">
+            <div className="flex flex-wrap gap-4">
               {ticket_url && (
                 <a
                   href={ticket_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-base font-black text-white transition-all hover:opacity-90 hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
                   style={{ backgroundColor: accentColor }}
                 >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  チケット
+                  <ExternalLink className="h-4 w-4" />
+                  チケット予約
                 </a>
               )}
               {source_url && (
@@ -137,9 +137,9 @@ export default function EventListItem({
                   href={source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-4 py-1.5 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-2xl border bg-background px-6 py-3 text-base font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-all hover:scale-105 active:scale-95 border-border shadow-sm"
                 >
-                  公式サイト
+                  詳細・公式サイト
                 </a>
               )}
             </div>

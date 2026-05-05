@@ -35,9 +35,6 @@ export default function HomePage() {
         <h1 className="text-4xl font-black tracking-tight mb-4 bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
           アーティスト
         </h1>
-        <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-          ライブ情報をチェックしたいアーティストを選択してください。
-        </p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
