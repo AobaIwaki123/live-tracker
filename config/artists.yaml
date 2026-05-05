@@ -89,6 +89,7 @@ artists:
       venue: note.content
       start_time: schedule.start
       source_url: link.link
+      ticket_url: link.link
   detail:
     enabled: false
 - name: ilife

@@ -394,6 +394,8 @@ class GenericScraper(BaseScraper):
                 venue = _resolve(mapping.get("venue", ""))
                 start_time = _resolve(mapping.get("start_time", ""))
                 ticket_url = _resolve(mapping.get("ticket_url", ""))
+                if ticket_url.startswith("/") and base_url_origin:
+                    ticket_url = base_url_origin + ticket_url
                 source_url = _resolve(mapping.get("source_url", ""))
                 if source_url.startswith("/") and base_url_origin:
                     source_url = base_url_origin + source_url
