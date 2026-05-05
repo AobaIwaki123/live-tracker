@@ -21,11 +21,29 @@ _DATE_FORMATS = [
 ]
 
 
-def _parse_date(raw: str) -> date | None:
-    """Try each known date format or Unix timestamp; return None if all fail."""
+def _parse_date(raw: str, context_date: date | None = None, date_format: str = "") -> date | None:
+    """Try each known date format or Unix timestamp; return None if all fail.
+
+    If context_date is provided and date_format is just '%d', it combines them.
+    """
     text = raw.strip()
     if not text:
         return None
+
+    # Handle partial date format like '%d' with context_date
+    if date_format == "%d" and context_date and text.isdigit():
+        try:
+            day = int(text)
+            return context_date.replace(day=day)
+        except ValueError:
+            pass
+
+    # Try explicit date_format if provided
+    if date_format:
+        try:
+            return datetime.strptime(text, date_format).date()
+        except ValueError:
+            pass
 
     # Try Unix timestamp (seconds or milliseconds)
     if text.isdigit():
@@ -92,20 +110,43 @@ class GenericScraper(BaseScraper):
 
         if nav_type == "api_endpoint":
             events = self._scrape_api(config)
-        elif nav_type == "single_page":
-            page = self._fetch_page(config.base_url, config.fetch.dynamic)
-            events = [] if page is None else self._parse_events(page, config)
+        elif nav_type in ("single_page", "query_param", "path_segment"):
+            events = self._scrape_html_targets(config)
         elif nav_type == "pagination_links":
             events = self._scrape_pagination_links(config)
         else:
             raise NotImplementedError(
                 f"navigation.type '{nav_type}' is not yet supported. "
-                "Supported types: 'single_page', 'api_endpoint', 'pagination_links'."
+                "Supported types: 'single_page', 'query_param', 'path_segment', "
+                "'api_endpoint', 'pagination_links'."
             )
 
         today = date.today()
         cutoff = today + relativedelta(months=config.navigation.range_months)
         return [e for e in events if e.date and today <= e.date <= cutoff]
+
+    def _scrape_html_targets(self, config: ArtistConfig) -> list[LiveEvent]:
+        """single_page / query_param / path_segment タイプのスクレイピングを実行する。"""
+        from src.scrapers.url_generator import generate_targets
+
+        targets = generate_targets(config)
+        all_events: list[LiveEvent] = []
+        seen: set[tuple[str, str, date | None]] = set()
+
+        for target in targets:
+            if not target.url:
+                continue
+            page = self._fetch_page(target.url, config.fetch.dynamic)
+            if page is None:
+                continue
+
+            events = self._parse_events(page, config, target.metadata)
+            for event in events:
+                key = event.identity_key()
+                if key not in seen:
+                    seen.add(key)
+                    all_events.append(event)
+        return all_events
 
     def _scrape_pagination_links(self, config: ArtistConfig) -> list[LiveEvent]:
         """pagination_links タイプのスクレイピングを実行する。
@@ -234,13 +275,11 @@ class GenericScraper(BaseScraper):
             raw_list = self._filter_raw_items(raw_list, resolved_config)
             events = self._map_api_response(
                 raw_list, resolved_config.response.mapping, resolved_config.name,
-                resolved_config.base_url_origin,
+                resolved_config.base_url_origin, target.metadata
             )
             for event in events:
                 if resolved_config.detail.enabled:
-                    event = self._fetch_detail(
-                        event, resolved_config.detail, resolved_config.base_url
-                    )
+                    event = self._fetch_detail(event, resolved_config)
 
                 key = event.identity_key()
                 if key not in seen:
@@ -333,7 +372,7 @@ class GenericScraper(BaseScraper):
 
     def _map_api_response(
         self, raw: list[dict], mapping: dict[str, str], artist: str,
-        base_url_origin: str = "",
+        base_url_origin: str = "", metadata: dict[str, Any] | None = None,
     ) -> list[LiveEvent]:
         """response.mapping 設定に従い dict → LiveEvent 変換する。
 
@@ -347,6 +386,7 @@ class GenericScraper(BaseScraper):
             mapping: LiveEvent フィールド名 → JSON キー名の辞書。
             artist: アーティスト識別子。
             base_url_origin: 相対 source_url に付与するオリジン（例: ``https://example.com``）。
+            metadata: ターゲットに関する追加情報。
 
         Returns:
             変換後の LiveEvent リスト。変換失敗した要素はスキップ。
@@ -354,6 +394,7 @@ class GenericScraper(BaseScraper):
         import re
 
         date_fmt = mapping.get("date_format", "")
+        context_date = (metadata or {}).get("date")
         events: list[LiveEvent] = []
         for item in raw:
             try:
@@ -382,13 +423,7 @@ class GenericScraper(BaseScraper):
                     continue
 
                 date_raw = _resolve(mapping.get("date", "date"))
-                if date_fmt:
-                    try:
-                        parsed_date = datetime.strptime(date_raw, date_fmt).date()
-                    except ValueError:
-                        parsed_date = _parse_date(date_raw)
-                else:
-                    parsed_date = _parse_date(date_raw)
+                parsed_date = _parse_date(date_raw, context_date, date_fmt)
 
                 event_id = _resolve(mapping.get("id", "id"))
                 venue = _resolve(mapping.get("venue", ""))
@@ -421,25 +456,26 @@ class GenericScraper(BaseScraper):
         return events
 
     def _fetch_detail(
-        self, event: LiveEvent, detail_config: DetailConfig, base_url: str
+        self, event: LiveEvent, config: ArtistConfig
     ) -> LiveEvent:
         """詳細ページへアクセスし追加フィールドを補完する。
 
         Args:
             event: 補完対象の LiveEvent。
-            detail_config: 詳細ページ取得設定。
-            base_url: アーティスト設定の base_url。URL パターン展開に使用。
+            config: 対象アーティストの設定。
 
         Returns:
             フィールド補完後の LiveEvent。取得失敗時は元の event をそのまま返す。
         """
+        detail_config = config.detail
         if not event.id:
             return event
 
         date_str = event.date.strftime("%Y-%m-%d") if event.date else ""
         url = (
             detail_config.url_pattern
-            .replace("{base_url}", base_url)
+            .replace("{base_url}", config.base_url)
+            .replace("{base_url_origin}", config.base_url_origin)
             .replace("{id}", event.id)
             .replace("{date}", date_str)
         )
@@ -505,7 +541,9 @@ class GenericScraper(BaseScraper):
             logger.error("Failed to fetch %s: %s", url, exc)
             return None
 
-    def _parse_events(self, page: Any, config: ArtistConfig) -> list[LiveEvent]:
+    def _parse_events(
+        self, page: Any, config: ArtistConfig, metadata: dict[str, Any] | None = None
+    ) -> list[LiveEvent]:
         """Extract LiveEvent objects from a fetched page using CSS selectors.
 
         Expected keys in ``config.selectors``:
@@ -516,6 +554,7 @@ class GenericScraper(BaseScraper):
         Args:
             page: Scrapling の Page オブジェクト。
             config: 対象アーティストの設定。
+            metadata: ターゲットに関する追加情報。
 
         Returns:
             抽出した LiveEvent リスト。
@@ -540,8 +579,10 @@ class GenericScraper(BaseScraper):
 
         events: list[LiveEvent] = []
         for container in containers:
-            event = self._parse_single_event(container, config)
+            event = self._parse_single_event(container, config, metadata)
             if event is not None:
+                if config.detail.enabled:
+                    event = self._fetch_detail(event, config)
                 events.append(event)
 
         return events
@@ -563,11 +604,9 @@ class GenericScraper(BaseScraper):
         return ""
 
     def _get_attr(self, container: Any, selector: str, attr: str) -> str:
-        """Return the named attribute of the first match, or ''."""
-        if not selector:
-            return ""
+        """Return the named attribute of the first match, or the container's if selector is empty."""
         try:
-            elements = container.css(selector)
+            elements = container.css(selector) if selector else [container]
             if elements:
                 value = elements[0].attrib.get(attr, "")
                 return (value or "").strip()
@@ -618,13 +657,14 @@ class GenericScraper(BaseScraper):
         return self._get_text(container, selector)
 
     def _parse_single_event(
-        self, container: Any, config: ArtistConfig
+        self, container: Any, config: ArtistConfig, metadata: dict[str, Any] | None = None
     ) -> LiveEvent | None:
         """Parse one event container element into a LiveEvent.
 
         Args:
             container: 1 イベント分の要素コンテナ。
             config: 対象アーティストの設定。
+            metadata: ターゲットに関する追加情報。
 
         Returns:
             LiveEvent、またはタイトルが取得できない場合は None。
@@ -633,7 +673,9 @@ class GenericScraper(BaseScraper):
 
         title = self._resolve_field(container, selectors, "title")
         date_raw = self._resolve_field(container, selectors, "date")
-        parsed_date = _parse_date(date_raw) if date_raw else None
+        date_fmt = selectors.get("date_format", "")
+        context_date = (metadata or {}).get("date")
+        parsed_date = _parse_date(date_raw, context_date, date_fmt) if date_raw else None
 
         if not title:
             logger.debug("Skipping container with empty title under '%s'", config.name)
@@ -643,6 +685,7 @@ class GenericScraper(BaseScraper):
             title=title,
             artist=config.name,
             date=parsed_date,
+            id=self._resolve_field(container, selectors, "id"),
             start_time=self._resolve_field(container, selectors, "start_time"),
             venue=self._resolve_field(container, selectors, "venue"),
             prefecture=self._resolve_field(container, selectors, "prefecture"),

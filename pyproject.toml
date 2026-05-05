@@ -13,6 +13,10 @@ dependencies = [
     "httpx",
     "typer>=0.25.1",
     "python-dateutil>=2.9.0",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "playwright>=1.58.0",
 ]
 
 [project.scripts]

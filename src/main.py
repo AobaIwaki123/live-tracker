@@ -164,5 +164,17 @@ def summary(days: int = typer.Option(14, help="何日先までの予定を送信
     typer.echo(f"サマリーを送信しました（{len(events)} 件）")
 
 
+@app.command()
+def web(
+    port: int = typer.Option(8000, help="Web サーバーのポート番号"),
+    host: str = typer.Option("127.0.0.1", help="Web サーバーのホスト名"),
+) -> None:
+    """フロントエンド PoC 用の Web サーバーを起動する。"""
+    import uvicorn
+    from src.web.app import app as web_app
+    typer.echo(f"Starting web server at http://{host}:{port}")
+    uvicorn.run(web_app, host=host, port=port)
+
+
 if __name__ == "__main__":
     app()

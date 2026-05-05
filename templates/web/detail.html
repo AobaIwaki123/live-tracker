@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ artist.display_name }} - Idol Live Tracker{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div class="detail-artist-image">
+        <img src="{{ artist.image_url }}" alt="{{ artist.display_name }}">
+    </div>
+    <div class="detail-artist-info">
+        <nav class="breadcrumb">
+            <a href="/">Home</a> &gt; {{ artist.display_name }}
+        </nav>
+        <h2>{{ artist.display_name }}</h2>
+        <p class="stats">{{ events|length }} Upcoming Events</p>
+    </div>
+</div>
+
+<div class="event-list-container">
+    {% if events %}
+    <ul class="event-list">
+        {% for event in events %}
+        <li class="event-item">
+            <div class="event-date">
+                <span class="day">{{ event.date.strftime('%d') if event.date else '--' }}</span>
+                <span class="month">{{ event.date.strftime('%b') if event.date else '???' }}</span>
+                <span class="year">{{ event.date.year if event.date else '' }}</span>
+            </div>
+            <div class="event-details">
+                <h3>{{ event.title }}</h3>
+                <div class="event-meta">
+                    <span class="venue">📍 {{ event.venue or 'Venue TBA' }}</span>
+                    {% if event.start_time %}
+                    <span class="time">⏰ {{ event.start_time }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="event-actions">
+                {% if event.ticket_url %}
+                <a href="{{ event.ticket_url }}" target="_blank" class="btn btn-primary">Ticket</a>
+                {% endif %}
+                <a href="{{ event.source_url }}" target="_blank" class="btn btn-secondary">Source</a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="no-events">
+        <p>No upcoming events found for this artist.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,5 +1,7 @@
 artists:
 - name: avam
+  display_name: AVAM
+  image_url: https://picsum.photos/seed/avam/400/300
   base_url: https://avam-fc.com/schedule
   analyzed_at: '2026-05-05'
   fetch:
@@ -28,6 +30,8 @@ artists:
       start_time: p.mt-2::regex(開演(\d+:\d+))
       ticket_url: p.mt-2 a::attr(href)
 - name: hnz
+  display_name: 日向坂46
+  image_url: https://picsum.photos/seed/hnz/400/300
   base_url: https://www.hinatazaka46.com/s/official
   analyzed_at: '2026-05-05'
   fetch:
@@ -48,6 +52,8 @@ artists:
   detail:
     enabled: false
 - name: shallm
+  display_name: shallm
+  image_url: https://picsum.photos/seed/shallm/400/300
   base_url: https://www.eventernote.com/actors/shallm/76150
   analyzed_at: '2026-05-05'
   fetch:
@@ -64,6 +70,8 @@ artists:
   detail:
     enabled: false
 - name: jj
+  display_name: Juice=Juice
+  image_url: https://picsum.photos/seed/jj/400/300
   base_url: https://helloproject.com/juicejuice/schedule/?filterType=member&viewType=member&selectedEventsTypes=CONCERT
   analyzed_at: '2026-05-05'
   fetch:
@@ -93,6 +101,8 @@ artists:
   detail:
     enabled: false
 - name: ilife
+  display_name: iLiFE!
+  image_url: https://picsum.photos/seed/ilife/400/300
   base_url: https://timetreeapp.com/public_calendars/ilife_official
   analyzed_at: '2026-05-05'
   fetch:
@@ -118,3 +128,28 @@ artists:
       source_url: url
   detail:
     enabled: false
+- name: candy-tune
+  display_name: CANDY TUNE
+  image_url: https://picsum.photos/seed/candytune/400/300
+  base_url: https://candytune.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule > li > a.box
+    id: '::attr(href)'
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: 'li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))'
+      ticket_url: 'a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)'

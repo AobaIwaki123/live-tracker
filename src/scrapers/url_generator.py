@@ -38,11 +38,13 @@ class ScrapeTarget:
         url: HTML スクレイピング用 URL。api_endpoint タイプでは None。
         api: API リクエスト情報。HTML タイプでは None。
         follow_next: True のとき GenericScraper が次ページリンクを辿る（pagination_links 用）。
+        metadata: ターゲットに関する追加情報（例: 対象年月）。
     """
 
     url: str | None = None
     api: ApiRequest | None = None
     follow_next: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def _expand(value: Any, *, month: datetime.date) -> Any:
@@ -117,12 +119,13 @@ def generate_targets(config: ArtistConfig) -> list[ScrapeTarget]:
 
     match nav.type:
         case "single_page":
-            return [ScrapeTarget(url=config.base_url)]
+            return [ScrapeTarget(url=config.base_url, metadata={"date": today})]
 
         case "query_param":
             return [
                 ScrapeTarget(
-                    url=f"{config.base_url}?{nav.param}={m.strftime(nav.value_format)}"
+                    url=f"{config.base_url}?{nav.param}={m.strftime(nav.value_format)}",
+                    metadata={"date": m},
                 )
                 for m in months
             ]
@@ -132,15 +135,17 @@ def generate_targets(config: ArtistConfig) -> list[ScrapeTarget]:
                 ScrapeTarget(
                     url=nav.pattern.format(
                         base_url=config.base_url,
+                        base_url_origin=config.base_url_origin,
                         year=m.year,
                         month=m.month,
-                    )
+                    ),
+                    metadata={"date": m},
                 )
                 for m in months
             ]
 
         case "pagination_links":
-            return [ScrapeTarget(url=config.base_url, follow_next=True)]
+            return [ScrapeTarget(url=config.base_url, follow_next=True, metadata={"date": today})]
 
         case "api_endpoint":
             seen_urls: set[str] = set()
@@ -162,7 +167,8 @@ def generate_targets(config: ArtistConfig) -> list[ScrapeTarget]:
                         method=nav.method,
                         body={k: _expand(v, month=m) for k, v in nav.body_template.items()},
                         headers=nav.headers,
-                    )
+                    ),
+                    metadata={"date": m},
                 ))
             return targets
 
