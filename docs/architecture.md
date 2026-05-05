@@ -1,34 +1,27 @@
 # アーキテクチャ図 — idol-live-tracker
 
-## 1. 2 フェーズ構成の全体像
+## 1. 全体像（スクレイピング ＆ Web フロントエンド）
 
-本ツールは **analyze（解析）** と **scrape（収集）** の 2 フェーズで動作する。
-人間は `base_url` のみを指定すればよく、サイト構造の調査・設定生成は AI が行う。
+本システムは、情報収集を行う **CLI バッチ層** と、収集した情報を表示する **Web フロントエンド層** の 2 つで構成されます。
 
 ```mermaid
 flowchart LR
-    subgraph Human["人間の作業"]
-        H1[base_url を\nYAMLに記載]
+    subgraph BatchLayer["CLI バッチ層 (Python)"]
+        A1[analyze コマンド\n設定自動生成]
+        S1[scrape コマンド\n情報収集]
+        N1[Notion/Discord\n同期・通知]
+        A1 -->|設定| S1
+        S1 -->|保存| DB[(SQLite: events.db)]
+        S1 -->|同期| N1
     end
 
-    subgraph Phase1["Phase 1: analyze コマンド（初回 or --force 時）"]
-        A1[DynamicFetcher\nページ取得 +\nXHR キャプチャ]
-        A2[Claude API\n構造解析]
-        A3[YAML 設定\n自動生成]
-        A1 --> A2 --> A3
+    subgraph WebLayer["Web フロントエンド層"]
+        API[FastAPI\nREST API]
+        UI[React SPA\n(Vite/TanStack/shadcn)]
+        DB -->|JSON提供| API
+        API -->|Fetch| UI
+        UI -->|閲覧| User((ユーザー))
     end
-
-    subgraph Phase2["Phase 2: scrape コマンド（定期実行）"]
-        S1[URLGenerator\nURL/APIリクエスト生成]
-        S2[GenericScraper\n情報収集]
-        S3[LiveEvent\nリスト生成]
-        S4[NotionClient\n差分書き込み]
-        S1 --> S2 --> S3 --> S4
-    end
-
-    H1 -->|base_url| Phase1
-    Phase1 -->|navigation + selectors| Phase2
-    Phase2 -->|新規イベントのみ| DB[(Notion DB)]
 ```
 
 ---

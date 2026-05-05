@@ -292,6 +292,7 @@ WeeklySummaryNotifier
 | `python main.py scrape [--artist NAME] [--dry-run]` | スクレイピング → SQLite 保存 → Notion 転記（任意）→ Discord 通知 |
 | `python main.py enrich [--artist NAME]` | 欠損フィールドを AI で補完（opt-in） |
 | `python main.py summary` | 直近 2 週間のサマリーを Discord へ即時送信（cron からも呼ぶ） |
+| `python main.py web [--port 8000] [--host 127.0.0.1]` | Web API サーバー (FastAPI) を起動 |
 
 ---
 
@@ -327,3 +328,7 @@ WeeklySummaryNotifier
 | セレクタで要素未検出 | フィールドを空文字として処理を継続 |
 | Notion API エラー | ログ出力してリトライなしでスキップ |
 | 日付パース失敗 | `date=None` として登録 |
+�文字として処理を継続 |
+| Notion API エラー | ログ出力してリトライなしでスキップ |
+| 日付パース失敗 | `date=None` として登録 |
+None` として登録 |
