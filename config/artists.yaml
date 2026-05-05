@@ -1,6 +1,7 @@
 artists:
 - name: avam
   display_name: AVAM
+  theme_color: '#E91E8C'
   image_url: https://picsum.photos/seed/avam/400/300
   base_url: https://avam-fc.com/schedule
   analyzed_at: '2026-05-05'
@@ -31,6 +32,7 @@ artists:
       ticket_url: p.mt-2 a::attr(href)
 - name: hnz
   display_name: 日向坂46
+  theme_color: '#1E88E5'
   image_url: https://picsum.photos/seed/hnz/400/300
   base_url: https://www.hinatazaka46.com/s/official
   analyzed_at: '2026-05-05'
@@ -53,6 +55,7 @@ artists:
     enabled: false
 - name: shallm
   display_name: shallm
+  theme_color: '#7C3AED'
   image_url: https://picsum.photos/seed/shallm/400/300
   base_url: https://www.eventernote.com/actors/shallm/76150
   analyzed_at: '2026-05-05'
@@ -71,6 +74,7 @@ artists:
     enabled: false
 - name: jj
   display_name: Juice=Juice
+  theme_color: '#F59E0B'
   image_url: https://picsum.photos/seed/jj/400/300
   base_url: https://helloproject.com/juicejuice/schedule/?filterType=member&viewType=member&selectedEventsTypes=CONCERT
   analyzed_at: '2026-05-05'
@@ -102,6 +106,7 @@ artists:
     enabled: false
 - name: ilife
   display_name: iLiFE!
+  theme_color: '#F97316'
   image_url: https://picsum.photos/seed/ilife/400/300
   base_url: https://timetreeapp.com/public_calendars/ilife_official
   analyzed_at: '2026-05-05'
@@ -130,6 +135,7 @@ artists:
     enabled: false
 - name: candy-tune
   display_name: CANDY TUNE
+  theme_color: '#EC4899'
   image_url: https://picsum.photos/seed/candytune/400/300
   base_url: https://candytune.asobisystem.com/live_information/schedule/list/
   analyzed_at: '2026-05-05'

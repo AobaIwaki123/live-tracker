@@ -5,6 +5,7 @@ export interface Artist {
   name: string;
   display_name: string;
   image_url: string;
+  theme_color?: string;
 }
 
 export const useArtists = () => {
