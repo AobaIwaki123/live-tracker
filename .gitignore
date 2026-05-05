@@ -5,3 +5,5 @@ data/events.db
 .env
 settings.local.json
 .playwright-mcp/
+events.db-shm
+events.db-wal
