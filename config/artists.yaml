@@ -88,6 +88,7 @@ artists:
       date_format: '%Y-%m-%d'
       venue: note.content
       start_time: schedule.start
+      source_url: link.link
   detail:
     enabled: false
 - name: ilife

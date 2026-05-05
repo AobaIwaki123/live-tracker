@@ -233,7 +233,8 @@ class GenericScraper(BaseScraper):
             raw_list = self._call_api(target, resolved_config.response.array_path)
             raw_list = self._filter_raw_items(raw_list, resolved_config)
             events = self._map_api_response(
-                raw_list, resolved_config.response.mapping, resolved_config.name
+                raw_list, resolved_config.response.mapping, resolved_config.name,
+                resolved_config.base_url_origin,
             )
             for event in events:
                 if resolved_config.detail.enabled:
@@ -331,18 +332,21 @@ class GenericScraper(BaseScraper):
             return []
 
     def _map_api_response(
-        self, raw: list[dict], mapping: dict[str, str], artist: str
+        self, raw: list[dict], mapping: dict[str, str], artist: str,
+        base_url_origin: str = "",
     ) -> list[LiveEvent]:
         """response.mapping 設定に従い dict → LiveEvent 変換する。
 
         ``mapping`` の構造: LiveEvent フィールド名 → JSON キー名。
         キー名に ``::regex(pattern)`` サフィックスを付けることで正規表現抽出が可能。
         ``date_format`` は特別キーとして日付パースフォーマットに使用する。
+        ``source_url`` が相対パス（``/`` 始まり）の場合、``base_url_origin`` を自動付与する。
 
         Args:
             raw: API レスポンスの JSON 配列。
             mapping: LiveEvent フィールド名 → JSON キー名の辞書。
             artist: アーティスト識別子。
+            base_url_origin: 相対 source_url に付与するオリジン（例: ``https://example.com``）。
 
         Returns:
             変換後の LiveEvent リスト。変換失敗した要素はスキップ。
@@ -391,6 +395,8 @@ class GenericScraper(BaseScraper):
                 start_time = _resolve(mapping.get("start_time", ""))
                 ticket_url = _resolve(mapping.get("ticket_url", ""))
                 source_url = _resolve(mapping.get("source_url", ""))
+                if source_url.startswith("/") and base_url_origin:
+                    source_url = base_url_origin + source_url
                 other_artists = _resolve(mapping.get("other_artists", ""))
                 poster_url = _resolve(mapping.get("poster_url", ""))
 
