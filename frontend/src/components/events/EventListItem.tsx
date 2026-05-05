@@ -66,9 +66,9 @@ export default function EventListItem({
         />
       )}
 
-      <div className="flex flex-col sm:flex-row gap-6 p-7 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row gap-4 p-6 w-full min-w-0">
         {/* Date block */}
-        <div className="flex flex-row sm:flex-col items-center justify-center sm:justify-start gap-3 sm:gap-1.5 min-w-[72px] text-center border-b sm:border-b-0 sm:border-r border-border pb-4 sm:pb-0 sm:pr-6">
+        <div className="flex flex-row sm:flex-col items-center justify-center sm:justify-start gap-2 sm:gap-1 min-w-[60px] text-center border-b sm:border-b-0 sm:border-r border-border pb-3 sm:pb-0 sm:pr-4">
           <span className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/60 leading-none">
             {dateObj ? MONTHS[dateObj.getMonth()] : "---"}
           </span>
@@ -85,7 +85,7 @@ export default function EventListItem({
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
+          <div className="flex flex-col xl:flex-row items-start xl:items-start justify-between gap-2 mb-4">
             <h3 className="font-black text-2xl leading-tight line-clamp-2 tracking-tighter group-hover/item:text-primary transition-colors">{title}</h3>
             <CountdownBadge label={countdown.label} variant={countdown.variant} />
           </div>
@@ -103,47 +103,48 @@ export default function EventListItem({
             </div>
           )}
 
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-lg text-muted-foreground font-medium mb-6">
-            {venue && (
-              <span className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 shrink-0 text-primary/60" />
-                {venue}
-              </span>
-            )}
-            {start_time && (
-              <span className="flex items-center gap-2">
-                <Clock className="h-5 w-5 shrink-0 text-primary/60" />
-                {start_time}
-              </span>
-            )}
-          </div>
-
-          {(ticket_url || source_url) && (
-            <div className="flex flex-wrap gap-4">
-              {ticket_url && (
-                <a
-                  href={ticket_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-base font-black text-white transition-all hover:opacity-90 hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-                  style={{ backgroundColor: accentColor }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  チケット予約
-                </a>
+          <div className="flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {venue && (
+                <span className="flex items-center gap-2 text-lg text-muted-foreground font-medium">
+                  <MapPin className="h-5 w-5 shrink-0 text-primary/60" />
+                  {venue}
+                </span>
               )}
-              {source_url && (
-                <a
-                  href={source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-2xl border bg-background px-6 py-3 text-base font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-all hover:scale-105 active:scale-95 border-border shadow-sm"
-                >
-                  詳細・公式サイト
-                </a>
+              {start_time && (
+                <span className="flex items-center gap-2 text-lg text-muted-foreground font-medium">
+                  <Clock className="h-5 w-5 shrink-0 text-primary/60" />
+                  {start_time}
+                </span>
               )}
             </div>
-          )}
+            {(ticket_url || source_url) && (
+              <div className="flex items-center gap-2 shrink-0">
+                {ticket_url && (
+                  <a
+                    href={ticket_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white transition-all hover:opacity-90 hover:scale-105 active:scale-95 shadow-md shadow-primary/20"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    チケット予約
+                  </a>
+                )}
+                {source_url && (
+                  <a
+                    href={source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-all hover:scale-105 active:scale-95 border-border shadow-sm"
+                  >
+                    詳細・公式サイト
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    --background: oklch(0.99 0 0);
+    --background: oklch(0.93 0.018 280);
     --foreground: oklch(0.12 0 0);
 
     --card: oklch(1 0 0);
@@ -16,7 +16,7 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.12 0 0);
 
-    --primary: oklch(0.2 0 0);
+    --primary: oklch(0.38 0.18 285);
     --primary-foreground: oklch(0.99 0 0);
 
     --secondary: oklch(0.95 0 0);

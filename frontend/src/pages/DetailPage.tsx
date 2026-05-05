@@ -97,11 +97,11 @@ export default function DetailPage() {
   const themeColor = artist.theme_color || "var(--primary)";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       {/* Banner */}
-      <div 
+      <div
         onClick={() => setIsImageOpen(true)}
-        className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-muted mb-16 shadow-2xl shadow-primary/10 cursor-zoom-in transition-all duration-500 hover:shadow-primary/20"
+        className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-muted mb-8 shadow-2xl shadow-primary/10 cursor-zoom-in transition-all duration-500 hover:shadow-primary/20"
       >
         <img
           src={artist.image_url}
@@ -109,33 +109,33 @@ export default function DetailPage() {
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent transition-opacity group-hover:opacity-90" />
-        <div className="absolute bottom-0 left-0 right-0 p-10 sm:p-12">
-          <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-8">
-            <div className="space-y-3">
-              <div 
-                className="inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.25em] text-white/90 bg-white/10 backdrop-blur-xl mb-3 border border-white/10"
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 xl:p-10">
+          <div className="flex flex-row items-end justify-between gap-3">
+            <div className="space-y-1 sm:space-y-2 min-w-0">
+              <div
+                className="hidden sm:inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-[0.25em] text-white/90 bg-white/10 backdrop-blur-xl mb-1 sm:mb-2 border border-white/10"
                 style={{ backgroundColor: `${themeColor}40` }}
               >
                 Artist Profile
               </div>
-              <h1 
-                className="text-5xl sm:text-7xl font-black leading-none tracking-tighter drop-shadow-2xl"
+              <h1
+                className="text-3xl sm:text-5xl xl:text-7xl font-black leading-none tracking-tighter drop-shadow-2xl truncate"
                 style={{ color: artist.theme_color }}
               >
                 {artist.display_name}
               </h1>
             </div>
-            
-            <div className="flex flex-wrap gap-5 items-center">
+
+            <div className="flex flex-wrap gap-2 sm:gap-4 items-center shrink-0">
               {nextCountdown && (
-                <div className="px-6 py-3.5 rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-2xl">
-                  <span className="text-xs font-black uppercase tracking-widest text-white/50 block mb-1">Next Live</span>
-                  <span className="text-2xl font-black leading-none">{nextCountdown.label}</span>
+                <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-2xl">
+                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Next Live</span>
+                  <span className="text-base sm:text-xl font-black leading-none">{nextCountdown.label}</span>
                 </div>
               )}
-              <div className="px-6 py-3.5 rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-xl">
-                <span className="text-xs font-black uppercase tracking-widest text-white/50 block mb-1">Upcoming</span>
-                <span className="text-2xl font-black leading-none">{upcoming.length}</span>
+              <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-xl">
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Upcoming</span>
+                <span className="text-base sm:text-xl font-black leading-none">{upcoming.length}</span>
               </div>
             </div>
           </div>
@@ -164,11 +164,11 @@ export default function DetailPage() {
 
       {/* Event list */}
       {events && events.length > 0 ? (
-        <div className="space-y-20">
-          <div className="space-y-16">
+        <div className="space-y-10">
+          <div className="space-y-8">
             {upcomingGroups.map(([key, monthEvents]) => (
               <MonthSection key={key} label={monthLabel(key)}>
-                <div className="grid gap-8">
+                <div className="grid gap-5">
                   {monthEvents.map((event, i) => (
                     <EventListItem
                       key={`${event.artist}-${i}`}
@@ -187,7 +187,7 @@ export default function DetailPage() {
           </div>
 
           <PastEventsCollapse count={past.length}>
-            <div className="grid gap-8 mt-12">
+            <div className="grid gap-5 mt-6">
               {past.map((event, i) => (
                 <EventListItem
                   key={`past-${i}`}

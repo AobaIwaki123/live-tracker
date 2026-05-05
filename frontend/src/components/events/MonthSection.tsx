@@ -6,7 +6,7 @@ interface MonthSectionProps {
 export default function MonthSection({ label, children }: MonthSectionProps) {
   return (
     <section>
-      <div className="flex items-center gap-6 mb-8 px-2">
+      <div className="flex items-center gap-4 mb-4 px-2">
         <h2 className="text-xl font-black uppercase tracking-[0.3em] text-muted-foreground/50 whitespace-nowrap">
           {label}
         </h2>
