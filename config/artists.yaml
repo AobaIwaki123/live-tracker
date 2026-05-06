@@ -145,13 +145,15 @@ artists:
     dynamic: false
   navigation:
     type: path_segment
-    pattern: /game/schedule/{year}/{month:02d}
+    pattern: '{base_url_origin}/game/schedule/{year}/{month:02d}'
     range_months: 12
   selectors:
-    event_list: .schedule-calendar-list .schedule-item
-    title: .match-info .opponent-team
-    date: .date-info .date
-    venue: .match-info .stadium
-    ticket_url: .ticket-link a::attr(href)
+    event_list: td.calendar--hasmatch
+    title: p.name span:last-child
+    date: p.day::regex(\d+)
+    date_format: '%d'
+    venue: p.location::regex(^([^\d]+))
+    start_time: p.location::regex((\d+:\d+))
+    ticket_url: .button--ticket a::attr(href)
   detail:
     enabled: false
