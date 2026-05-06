@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Navbar from "@/components/layout/Navbar";
 import HomePage from "@/pages/HomePage";
 import DetailPage from "@/pages/DetailPage";
+import GlobalCanvas from "@/components/r3f/GlobalCanvas";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,15 +18,16 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-background font-sans antialiased">
-          <Navbar />
-          <main>
-            <div className="mx-auto max-w-5xl min-h-[calc(100vh-5rem)] bg-card shadow-[0_0_60px_-10px_rgba(109,40,217,0.08)]">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/artist/:artistId" element={<DetailPage />} />
-              </Routes>
-            </div>
+        <GlobalCanvas />
+        <div className="min-h-screen font-sans antialiased text-foreground pointer-events-none">
+          <div className="pointer-events-auto">
+            <Navbar />
+          </div>
+          <main className="relative mx-auto w-full">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/artist/:artistId" element={<div className="pointer-events-auto"><DetailPage /></div>} />
+            </Routes>
           </main>
         </div>
       </Router>

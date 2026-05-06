@@ -6,7 +6,7 @@ export default function Navbar() {
   const isHome = location.pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/60 border-b border-purple-100/80 shadow-[0_1px_20px_rgba(147,112,219,0.08)]">
+    <header className="sticky top-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10 shadow-[0_1px_20px_rgba(147,112,219,0.08)]">
       <div className="mx-auto max-w-5xl px-4">
         <div className="flex h-20 items-center justify-between gap-4">
           <Link

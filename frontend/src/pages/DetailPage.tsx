@@ -97,128 +97,130 @@ export default function DetailPage() {
   const themeColor = artist.theme_color || "var(--primary)";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Banner */}
-      <div
-        onClick={() => setIsImageOpen(true)}
-        className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-muted mb-8 shadow-2xl shadow-primary/10 cursor-zoom-in transition-all duration-500 hover:shadow-primary/20"
-      >
-        <img
-          src={artist.image_url}
-          alt={artist.display_name}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent transition-opacity group-hover:opacity-90" />
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 xl:p-10">
-          <div className="flex flex-row items-end justify-between gap-3">
-            <div className="space-y-1 sm:space-y-2 min-w-0">
-              <div
-                className="hidden sm:inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-[0.25em] text-white/90 bg-white/10 backdrop-blur-xl mb-1 sm:mb-2 border border-white/10"
-                style={{ backgroundColor: `${themeColor}40` }}
-              >
-                Artist Profile
-              </div>
-              <h1
-                className="text-3xl sm:text-5xl xl:text-7xl font-black leading-none tracking-tighter drop-shadow-2xl truncate"
-                style={{ color: artist.theme_color }}
-              >
-                {artist.display_name}
-              </h1>
-            </div>
-
-            <div className="flex flex-wrap gap-2 sm:gap-4 items-center shrink-0">
-              {nextCountdown && (
-                <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-2xl">
-                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Next Live</span>
-                  <span className="text-base sm:text-xl font-black leading-none">{nextCountdown.label}</span>
-                </div>
-              )}
-              <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-xl">
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Upcoming</span>
-                <span className="text-base sm:text-xl font-black leading-none">{upcoming.length}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Image Popup */}
-      {isImageOpen && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 sm:p-10 animate-in fade-in duration-300"
-          onClick={() => setIsImageOpen(false)}
+    <div className="mx-auto max-w-5xl px-4 py-8 mt-12 mb-24 relative z-10">
+      <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[3rem] p-4 sm:p-8 shadow-2xl">
+        {/* Banner */}
+        <div
+          onClick={() => setIsImageOpen(true)}
+          className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-black/50 mb-8 shadow-2xl shadow-primary/10 cursor-zoom-in transition-all duration-500 hover:shadow-primary/20"
         >
-          <button 
-            className="absolute top-8 right-8 p-4 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors shadow-2xl border border-white/10"
-            onClick={(e) => { e.stopPropagation(); setIsImageOpen(false); }}
-          >
-            <X className="h-10 w-10" />
-          </button>
           <img
             src={artist.image_url}
             alt={artist.display_name}
-            className="max-h-[90vh] max-w-[95vw] object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-300 border border-white/10"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
-        </div>
-      )}
-
-      {/* Event list */}
-      {events && events.length > 0 ? (
-        <div className="space-y-10">
-          <div className="space-y-8">
-            {upcomingGroups.map(([key, monthEvents]) => (
-              <MonthSection key={key} label={monthLabel(key)}>
-                <div className="grid gap-5">
-                  {monthEvents.map((event, i) => (
-                    <EventListItem
-                      key={`${event.artist}-${i}`}
-                      title={event.title}
-                      date={event.date}
-                      venue={event.venue}
-                      start_time={event.start_time}
-                      ticket_url={event.ticket_url}
-                      source_url={event.source_url}
-                      themeColor={themeColor}
-                    />
-                  ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent transition-opacity group-hover:opacity-90" />
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 xl:p-10">
+            <div className="flex flex-row items-end justify-between gap-3">
+              <div className="space-y-1 sm:space-y-2 min-w-0">
+                <div
+                  className="hidden sm:inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-[0.25em] text-white/90 bg-white/10 backdrop-blur-xl mb-1 sm:mb-2 border border-white/10"
+                  style={{ backgroundColor: `${themeColor}40` }}
+                >
+                  Artist Profile
                 </div>
-              </MonthSection>
-            ))}
-          </div>
+                <h1
+                  className="text-3xl sm:text-5xl xl:text-7xl font-black leading-none tracking-tighter drop-shadow-2xl truncate"
+                  style={{ color: artist.theme_color }}
+                >
+                  {artist.display_name}
+                </h1>
+              </div>
 
-          <PastEventsCollapse count={past.length}>
-            <div className="grid gap-5 mt-6">
-              {past.map((event, i) => (
-                <EventListItem
-                  key={`past-${i}`}
-                  title={event.title}
-                  date={event.date}
-                  venue={event.venue}
-                  start_time={event.start_time}
-                  ticket_url={event.ticket_url}
-                  source_url={event.source_url}
-                  themeColor={themeColor}
-                />
+              <div className="flex flex-wrap gap-2 sm:gap-4 items-center shrink-0">
+                {nextCountdown && (
+                  <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-2xl">
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Next Live</span>
+                    <span className="text-base sm:text-xl font-black leading-none">{nextCountdown.label}</span>
+                  </div>
+                )}
+                <div className="px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-[1.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 text-white shadow-xl">
+                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/50 block mb-0.5">Upcoming</span>
+                  <span className="text-base sm:text-xl font-black leading-none">{upcoming.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Image Popup */}
+        {isImageOpen && (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 sm:p-10 animate-in fade-in duration-300"
+            onClick={() => setIsImageOpen(false)}
+          >
+            <button 
+              className="absolute top-8 right-8 p-4 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors shadow-2xl border border-white/10"
+              onClick={(e) => { e.stopPropagation(); setIsImageOpen(false); }}
+            >
+              <X className="h-10 w-10" />
+            </button>
+            <img
+              src={artist.image_url}
+              alt={artist.display_name}
+              className="max-h-[90vh] max-w-[95vw] object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-300 border border-white/10"
+            />
+          </div>
+        )}
+
+        {/* Event list */}
+        {events && events.length > 0 ? (
+          <div className="space-y-10">
+            <div className="space-y-8">
+              {upcomingGroups.map(([key, monthEvents]) => (
+                <MonthSection key={key} label={monthLabel(key)}>
+                  <div className="grid gap-5">
+                    {monthEvents.map((event, i) => (
+                      <EventListItem
+                        key={`${event.artist}-${i}`}
+                        title={event.title}
+                        date={event.date}
+                        venue={event.venue}
+                        start_time={event.start_time}
+                        ticket_url={event.ticket_url}
+                        source_url={event.source_url}
+                        themeColor={themeColor}
+                      />
+                    ))}
+                  </div>
+                </MonthSection>
               ))}
             </div>
-          </PastEventsCollapse>
-        </div>
-      ) : (
-        <div className="py-48 text-center bg-muted/20 rounded-[3.5rem] border-2 border-dashed border-muted/50 shadow-inner">
-          <Calendar className="mx-auto h-24 w-24 text-muted-foreground/30 mb-10" />
-          <h3 className="text-4xl font-black mb-6 tracking-tighter">予定されているライブはありません</h3>
-          <p className="text-muted-foreground mb-12 text-2xl font-medium">また後ほどチェックしてみてください</p>
-          {artist.image_url && (
-            <a
-              href={String(artist.image_url).startsWith("/img") ? "#" : artist.image_url}
-              className="inline-flex items-center gap-4 text-xl font-black text-primary hover:underline underline-offset-[16px] transition-all decoration-[6px]"
-            >
-              公式サイトを確認する
-              <ArrowLeft className="h-6 w-6 rotate-180" />
-            </a>
-          )}
-        </div>
-      )}
+
+            <PastEventsCollapse count={past.length}>
+              <div className="grid gap-5 mt-6">
+                {past.map((event, i) => (
+                  <EventListItem
+                    key={`past-${i}`}
+                    title={event.title}
+                    date={event.date}
+                    venue={event.venue}
+                    start_time={event.start_time}
+                    ticket_url={event.ticket_url}
+                    source_url={event.source_url}
+                    themeColor={themeColor}
+                  />
+                ))}
+              </div>
+            </PastEventsCollapse>
+          </div>
+        ) : (
+          <div className="py-48 text-center bg-black/20 rounded-[3.5rem] border border-white/10 shadow-inner">
+            <Calendar className="mx-auto h-24 w-24 text-white/30 mb-10" />
+            <h3 className="text-4xl font-black mb-6 tracking-tighter text-white">予定されているライブはありません</h3>
+            <p className="text-white/60 mb-12 text-2xl font-medium">また後ほどチェックしてみてください</p>
+            {artist.image_url && (
+              <a
+                href={String(artist.image_url).startsWith("/img") ? "#" : artist.image_url}
+                className="inline-flex items-center gap-4 text-xl font-black text-primary hover:underline underline-offset-[16px] transition-all decoration-[6px]"
+              >
+                公式サイトを確認する
+                <ArrowLeft className="h-6 w-6 rotate-180" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

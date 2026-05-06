@@ -1,84 +1,50 @@
-import { Link } from "react-router-dom";
-import { Music2, ChevronRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useArtists } from "@/hooks/useArtists";
+import { Music2 } from "lucide-react";
+// TODO: Import ArtistGrid status hook or state later
 
 export default function HomePage() {
-  const { data: artists, isLoading, error } = useArtists();
+  return (
+    <div className="relative w-full">
+      {/* Hero Section (DOM Layer) */}
+      <section className="relative w-full h-[420px] md:h-[380px] pointer-events-none z-10 flex flex-col justify-center px-12 md:px-16">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-700 to-purple-500 shadow-lg shadow-purple-400/40 mb-6">
+          <Music2 className="h-8 w-8 text-white" />
+        </div>
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
+        <div
+          className="h-px w-[360px] max-w-full mb-4"
+          style={{
+            background: "linear-gradient(to right, rgba(167,139,250,0.9), rgba(236,72,153,0.6), transparent)",
+            boxShadow: "0 0 8px rgba(167,139,250,0.8)",
+          }}
+        />
+
+        <h2 className="font-black text-5xl md:text-7xl tracking-tighter bg-gradient-to-br from-white via-purple-200 to-violet-400 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(167,139,250,0.6)] mb-3">
+          Live Tracker
+        </h2>
+
+        <p className="text-xl md:text-2xl font-normal tracking-wide text-violet-300/75 mb-6">
+          ライブ日程 追跡ツール
+        </p>
+
+        <div className="flex gap-3 flex-wrap pointer-events-auto">
+          {["スケジュール自動取得", "Discord 通知"].map((label) => (
+            <span
+              key={label}
+              className="px-4 py-2 rounded-full text-sm font-medium text-violet-200/90 bg-violet-900/40 border border-violet-400/30 backdrop-blur-sm"
+            >
+              {label}
+            </span>
           ))}
         </div>
-      </div>
-    );
-  }
+      </section>
 
-  if (error) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-        <h2 className="text-xl font-bold text-destructive mb-4">バックエンドに接続できません</h2>
-        <code className="text-sm bg-muted px-4 py-2 rounded-lg inline-block">
-          uv run uvicorn src.web.app:app --reload
-        </code>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-black tracking-tight mb-4 bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
-          アーティスト
-        </h1>
-      </header>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {artists?.map((artist) => (
-          <Link
-            key={artist.name}
-            to={`/artist/${artist.name}`}
-            className="group relative flex flex-col overflow-hidden rounded-2xl bg-card border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-primary/20"
-          >
-            <div className="aspect-[16/10] overflow-hidden">
-              <img
-                src={artist.image_url}
-                alt={artist.display_name}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div 
-                className="absolute inset-0 opacity-20 group-hover:opacity-10 transition-opacity" 
-                style={{ backgroundColor: artist.theme_color }}
-              />
-            </div>
-            
-            <div className="flex flex-1 items-center justify-between p-6">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-1.5 h-6 rounded-full shrink-0"
-                  style={{ backgroundColor: artist.theme_color || "var(--primary)" }}
-                />
-                <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
-                  {artist.display_name}
-                </h3>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-          </Link>
-        ))}
-
-        {!artists || artists.length === 0 && (
-          <div className="col-span-full py-24 text-center bg-muted/30 rounded-3xl border-2 border-dashed">
-            <Music2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-bold mb-2">アーティストが登録されていません</h3>
-            <p className="text-muted-foreground">config/artists.yaml を確認してください</p>
-          </div>
-        )}
-      </div>
+      {/* 
+        Note: The actual artist grid will be rendered inside GlobalCanvas in 3D.
+        We don't render the DOM Artist Grid here anymore. 
+        A transparent spacer or ScrollControls element might be needed here later 
+        if we want to drive 3D scrolling via DOM height.
+      */}
+      <div className="h-[200vh]" /> {/* Placeholder for scroll space */}
     </div>
   );
 }
