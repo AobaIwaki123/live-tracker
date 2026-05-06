@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>OG Image Generator — Idol Live Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #050010;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #e2e8f0;
+    }
+    #output {
+      border-radius: 12px;
+      box-shadow: 0 0 60px rgba(124,58,237,0.5), 0 0 120px rgba(168,85,247,0.2);
+      max-width: 90vw;
+    }
+    .controls { display: flex; gap: 12px; align-items: center; }
+    button {
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.5);
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    .hint { color: #64748b; font-size: 13px; }
+    code { background: #1e1040; padding: 2px 6px; border-radius: 4px; color: #a78bfa; }
+    canvas#three-canvas { display: none; }
+  </style>
+</head>
+<body>
+  <div class="hint">Three.js OG Image Generator — 1200 × 630</div>
+
+  <canvas id="three-canvas" width="1200" height="630"></canvas>
+  <canvas id="output" width="1200" height="630"></canvas>
+
+  <div class="controls">
+    <button onclick="downloadOG()">Download og.png</button>
+    <button onclick="regenerate()" style="background: #1e1040; border: 1px solid #4c1d95;">Regenerate</button>
+  </div>
+  <div class="hint">Save as <code>frontend/public/og.png</code></div>
+
+  <script type="importmap">
+    {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.167.0/build/three.module.js"}}
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    const W = 1200, H = 630;
+    const threeCanvas = document.getElementById('three-canvas');
+    const output = document.getElementById('output');
+    const ctx = output.getContext('2d');
+
+    // ─── Three.js scene ───────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: false });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x080012);
+
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 100);
+    camera.position.set(0, 0, 7);
+
+    // — Ambient glow plane (deep background gradient feel)
+    const bgMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 30),
+      new THREE.MeshBasicMaterial({ color: 0x080012 })
+    );
+    bgMesh.position.z = -8;
+    scene.add(bgMesh);
+
+    // — Particles
+    const PARTICLE_COUNT = 500;
+    const pPositions = new Float32Array(PARTICLE_COUNT * 3);
+    const pColors    = new Float32Array(PARTICLE_COUNT * 3);
+    const pSizes     = new Float32Array(PARTICLE_COUNT);
+
+    const palette = [
+      new THREE.Color(0xa855f7),
+      new THREE.Color(0xec4899),
+      new THREE.Color(0xffffff),
+      new THREE.Color(0x818cf8),
+      new THREE.Color(0xf0abfc),
+      new THREE.Color(0x60a5fa),
+    ];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      pPositions[i*3]   = (Math.random() - 0.5) * 22;
+      pPositions[i*3+1] = (Math.random() - 0.5) * 12;
+      pPositions[i*3+2] = (Math.random() - 0.5) * 10 - 3;
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      pColors[i*3] = c.r; pColors[i*3+1] = c.g; pColors[i*3+2] = c.b;
+      pSizes[i] = Math.random() * 3 + 1;
+    }
+
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+    pGeo.setAttribute('color',    new THREE.BufferAttribute(pColors,    3));
+    pGeo.setAttribute('size',     new THREE.BufferAttribute(pSizes,     1));
+
+    const pMat = new THREE.PointsMaterial({
+      size: 0.07,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      sizeAttenuation: true,
+    });
+    scene.add(new THREE.Points(pGeo, pMat));
+
+    // — Glowing orbs
+    [
+      { pos: [-2.5,  1.8, -2], color: 0x7c3aed, r: 1.4 },
+      { pos: [ 3.5, -0.8, -1], color: 0xdb2777, r: 1.0 },
+      { pos: [ 0.5, -2.8, -4], color: 0x4338ca, r: 1.8 },
+      { pos: [-4.0, -1.5, -3], color: 0x9333ea, r: 0.8 },
+    ].forEach(({ pos, color, r }) => {
+      // Outer haze
+      const haze = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 32, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12 })
+      );
+      haze.position.set(...pos);
+      scene.add(haze);
+      // Core
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(r * 0.28, 16, 16),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7 })
+      );
+      core.position.set(...pos);
+      scene.add(core);
+    });
+
+    // — Torus rings (concert spotlight rings)
+    [
+      { pos: [2.2,  0.3, -0.5], rx: 1.1, ry: 0.3, r: 1.9, tube: 0.04, color: 0xa855f7, op: 0.35 },
+      { pos: [-2.8, -0.4, -1 ], rx: 0.8, ry:-0.5, r: 1.4, tube: 0.03, color: 0xec4899, op: 0.28 },
+      { pos: [0.5,  2.0, -2  ], rx: 1.5, ry: 0.8, r: 2.2, tube: 0.035,color: 0x818cf8, op: 0.2  },
+    ].forEach(({ pos, rx, ry, r, tube, color, op }) => {
+      const mesh = new THREE.Mesh(
+        new THREE.TorusGeometry(r, tube, 16, 100),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op })
+      );
+      mesh.rotation.x = rx; mesh.rotation.y = ry;
+      mesh.position.set(...pos);
+      scene.add(mesh);
+    });
+
+    // — Render
+    function renderScene() {
+      renderer.render(scene, camera);
+    }
+
+    // ─── 2D text overlay ─────────────────────────────────────────────────────
+    function roundRect(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.lineTo(x + w - r, y);
+      c.arcTo(x + w, y, x + w, y + r, r);
+      c.lineTo(x + w, y + h - r);
+      c.arcTo(x + w, y + h, x + w - r, y + h, r);
+      c.lineTo(x + r, y + h);
+      c.arcTo(x, y + h, x, y + h - r, r);
+      c.lineTo(x, y + r);
+      c.arcTo(x, y, x + r, y, r);
+      c.closePath();
+    }
+
+    function composite() {
+      renderScene();
+
+      // ① Three.js scene base
+      ctx.drawImage(threeCanvas, 0, 0);
+
+      // ② Dark vignette — left side for text legibility
+      const vignL = ctx.createLinearGradient(0, 0, W * 0.75, 0);
+      vignL.addColorStop(0,    'rgba(6,0,18,0.92)');
+      vignL.addColorStop(0.5,  'rgba(6,0,18,0.65)');
+      vignL.addColorStop(1,    'rgba(6,0,18,0.0)');
+      ctx.fillStyle = vignL;
+      ctx.fillRect(0, 0, W, H);
+
+      // ③ Top/bottom vignette
+      const vignV = ctx.createLinearGradient(0, 0, 0, H);
+      vignV.addColorStop(0,   'rgba(6,0,18,0.55)');
+      vignV.addColorStop(0.4, 'rgba(6,0,18,0.0)');
+      vignV.addColorStop(0.7, 'rgba(6,0,18,0.0)');
+      vignV.addColorStop(1,   'rgba(6,0,18,0.6)');
+      ctx.fillStyle = vignV;
+      ctx.fillRect(0, 0, W, H);
+
+      const PX = 72;   // left padding
+      const CY = H / 2;
+
+      // ④ App icon — violet rounded square
+      const ICON = 96, iconY = CY - 176;
+      ctx.save();
+      ctx.shadowColor = 'rgba(167,139,250,0.9)';
+      ctx.shadowBlur = 32;
+      roundRect(ctx, PX, iconY, ICON, ICON, 24);
+      const iconGrad = ctx.createLinearGradient(PX, iconY, PX + ICON, iconY + ICON);
+      iconGrad.addColorStop(0, '#6d28d9');
+      iconGrad.addColorStop(1, '#a855f7');
+      ctx.fillStyle = iconGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // Music note in icon
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.font = 'bold 52px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('♪', PX + ICON / 2, iconY + ICON / 2 + 3);
+      ctx.restore();
+
+      // ⑤ Decorative accent line above title
+      ctx.save();
+      const lineY = CY - 58;
+      const lineGrad = ctx.createLinearGradient(PX, 0, PX + 480, 0);
+      lineGrad.addColorStop(0, 'rgba(167,139,250,0.9)');
+      lineGrad.addColorStop(0.6,'rgba(236,72,153,0.6)');
+      lineGrad.addColorStop(1, 'rgba(167,139,250,0)');
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(167,139,250,0.8)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.moveTo(PX, lineY);
+      ctx.lineTo(PX + 460, lineY);
+      ctx.stroke();
+      ctx.restore();
+
+      // ⑥ Title — "Idol Live Tracker"
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      // Glow pass
+      ctx.font = '900 84px system-ui, -apple-system, "Helvetica Neue", sans-serif';
+      ctx.shadowColor = 'rgba(167,139,250,0.6)';
+      ctx.shadowBlur = 28;
+      ctx.fillStyle = 'rgba(167,139,250,0.3)';
+      ctx.fillText('Idol Live Tracker', PX + 2, CY + 24);
+      // Main gradient text
+      const titleGrad = ctx.createLinearGradient(PX, CY - 70, PX + 620, CY + 30);
+      titleGrad.addColorStop(0,   '#ffffff');
+      titleGrad.addColorStop(0.5, '#e9d5ff');
+      titleGrad.addColorStop(1,   '#c4b5fd');
+      ctx.fillStyle = titleGrad;
+      ctx.shadowBlur = 0;
+      ctx.fillText('Idol Live Tracker', PX, CY + 22);
+      ctx.restore();
+
+      // ⑦ Japanese subtitle
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = '400 29px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(196,181,253,0.75)';
+      ctx.letterSpacing = '0.04em';
+      ctx.fillText('アイドル ライブ日程 追跡ツール', PX, CY + 78);
+      ctx.restore();
+
+      // ⑧ Feature chips
+      const chips = ['スケジュール自動取得', 'Notion 連携', 'Discord 通知'];
+      let chipX = PX;
+      const chipY = CY + 126;
+      chips.forEach(label => {
+        ctx.save();
+        ctx.font = '500 17px system-ui';
+        const tw = ctx.measureText(label).width;
+        const cw = tw + 28, ch = 34, cr = 17;
+        roundRect(ctx, chipX, chipY - ch + 6, cw, ch, cr);
+        ctx.fillStyle = 'rgba(109,40,217,0.35)';
+        ctx.fill();
+        roundRect(ctx, chipX, chipY - ch + 6, cw, ch, cr);
+        ctx.strokeStyle = 'rgba(167,139,250,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(221,214,254,0.9)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, chipX + 14, chipY - ch / 2 + 6);
+        ctx.restore();
+        chipX += cw + 10;
+      });
+
+      // ⑨ URL at bottom-left
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = '400 18px "SF Mono", "Fira Code", monospace';
+      ctx.fillStyle = 'rgba(148,163,184,0.55)';
+      ctx.fillText('live-tracker.aooba.net', PX, H - 40);
+      ctx.restore();
+
+      // ⑩ Subtle right-side content hint (stacked event cards sketch)
+      drawCardSketch(ctx, W * 0.65, CY - 100);
+    }
+
+    function drawCardSketch(c, x, y) {
+      const cards = [
+        { dy: 0,   op: 0.18, color: '#7c3aed' },
+        { dy: 80,  op: 0.12, color: '#db2777' },
+        { dy: 160, op: 0.07, color: '#4338ca' },
+      ];
+      cards.forEach(({ dy, op, color }) => {
+        c.save();
+        c.globalAlpha = op;
+        roundRect(c, x, y + dy, 370, 68, 16);
+        c.fillStyle = color;
+        c.fill();
+        roundRect(c, x, y + dy, 370, 68, 16);
+        c.strokeStyle = 'rgba(255,255,255,0.3)';
+        c.lineWidth = 1;
+        c.stroke();
+
+        // Fake content lines
+        c.globalAlpha = op * 1.5;
+        c.fillStyle = '#fff';
+        c.beginPath();
+        c.roundRect(x + 16, y + dy + 16, 80, 10, 5);
+        c.fill();
+        c.beginPath();
+        c.roundRect(x + 110, y + dy + 14, 180, 12, 6);
+        c.fill();
+        c.beginPath();
+        c.roundRect(x + 110, y + dy + 34, 120, 8, 4);
+        c.fill();
+        c.restore();
+      });
+    }
+
+    // ─── Init & expose ────────────────────────────────────────────────────────
+    composite();
+
+    window.downloadOG = function() {
+      const link = document.createElement('a');
+      link.download = 'og.png';
+      link.href = output.toDataURL('image/png');
+      link.click();
+    };
+
+    window.regenerate = function() {
+      // Slightly rotate rings for variation
+      scene.children.forEach(obj => {
+        if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.TorusGeometry) {
+          obj.rotation.z += 0.3;
+        }
+      });
+      // Shuffle some particles
+      const pos = pGeo.attributes.position.array;
+      for (let i = 0; i < 50; i++) {
+        const idx = Math.floor(Math.random() * PARTICLE_COUNT) * 3;
+        pos[idx]   = (Math.random() - 0.5) * 22;
+        pos[idx+1] = (Math.random() - 0.5) * 12;
+        pos[idx+2] = (Math.random() - 0.5) * 10 - 3;
+      }
+      pGeo.attributes.position.needsUpdate = true;
+      composite();
+    };
+  </script>
+</body>
+</html>
