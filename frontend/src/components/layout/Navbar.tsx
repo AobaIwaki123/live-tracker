@@ -16,7 +16,7 @@ export default function Navbar() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 text-white shadow-lg shadow-purple-400/30">
               <Music className="h-6 w-6" />
             </div>
-            <span className="hidden xs:inline tracking-tighter bg-gradient-to-r from-violet-700 to-purple-500 bg-clip-text text-transparent">
+            <span className="tracking-tighter bg-gradient-to-r from-violet-700 to-purple-500 bg-clip-text text-transparent">
               Live Tracker
             </span>
           </Link>
@@ -25,10 +25,10 @@ export default function Navbar() {
             {!isHome && (
               <Link
                 to="/"
-                className="flex items-center gap-2.5 rounded-2xl bg-secondary px-5 py-2.5 text-base font-black text-secondary-foreground hover:bg-violet-600 hover:text-white transition-all active:scale-95 shadow-sm border border-border"
+                className="flex items-center gap-2.5 rounded-2xl bg-secondary px-4 py-2.5 text-base font-black text-secondary-foreground hover:bg-violet-600 hover:text-white transition-all active:scale-95 shadow-sm border border-border"
               >
-                <ArrowLeft className="h-5 w-5" />
-                <span>アーティスト一覧</span>
+                <ArrowLeft className="h-5 w-5 shrink-0" />
+                <span className="hidden sm:inline">アーティスト一覧</span>
               </Link>
             )}
           </div>

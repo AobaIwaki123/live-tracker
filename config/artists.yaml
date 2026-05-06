@@ -30,29 +30,6 @@ artists:
       venue: p.mt-2::regex(🏰会場：([^\n]+))
       start_time: p.mt-2::regex(開演(\d+:\d+))
       ticket_url: p.mt-2 a::attr(href)
-# - name: hnz
-#   display_name: 日向坂46
-#   theme_color: '#1E88E5'
-#   image_url: https://picsum.photos/seed/hnz/400/300
-#   base_url: https://www.hinatazaka46.com/s/official
-#   analyzed_at: '2026-05-05'
-#   fetch:
-#     dynamic: true
-#   navigation:
-#     type: api_endpoint
-#     endpoint: /s/official/api/list/shakehands_list
-#     method: GET
-#     range_months: 3
-#   response:
-#     format: json_object_with_array
-#     array_path: shakehands
-#     mapping:
-#       id: code
-#       title: title
-#       date: date
-#       date_format: '%Y%m%d'
-#   detail:
-#     enabled: false
 - name: shallm
   display_name: shallm
   theme_color: '#7C3AED'
@@ -147,7 +124,7 @@ artists:
     range_months: 3
   selectors:
     event_list: ul.list--schedule > li > a.box
-    id: '::attr(href)'
+    id: ::attr(href)
     title: p.tit
     date: span.block--date__date
     date_format: '%d'
@@ -157,5 +134,24 @@ artists:
     enabled: true
     url_pattern: '{base_url_origin}{id}'
     selectors:
-      venue: 'li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))'
-      ticket_url: 'a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)'
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
+- name: dena
+  base_url: https://www.baystars.co.jp/game/schedule/2026
+  display_name: 横浜DeNAベイスターズ
+  theme_color: '#003F8E'
+  analyzed_at: '2026-05-06'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: /game/schedule/{year}/{month:02d}
+    range_months: 12
+  selectors:
+    event_list: .schedule-calendar-list .schedule-item
+    title: .match-info .opponent-team
+    date: .date-info .date
+    venue: .match-info .stadium
+    ticket_url: .ticket-link a::attr(href)
+  detail:
+    enabled: false
