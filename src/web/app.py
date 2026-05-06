@@ -7,7 +7,7 @@ from typing import Any
 
 from src.store.local_store import LocalStore
 
-app = FastAPI(title="Idol Live Tracker API")
+app = FastAPI(title="Live Tracker API")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "config" / "artists.yaml"
@@ -99,4 +99,5 @@ async def get_all_events():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

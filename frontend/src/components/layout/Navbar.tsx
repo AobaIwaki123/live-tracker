@@ -17,7 +17,7 @@ export default function Navbar() {
               <Music className="h-6 w-6" />
             </div>
             <span className="hidden xs:inline tracking-tighter bg-gradient-to-r from-violet-700 to-purple-500 bg-clip-text text-transparent">
-              Idol Live Tracker
+              Live Tracker
             </span>
           </Link>
 

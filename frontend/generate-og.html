@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>OG Image Generator — Idol Live Tracker</title>
+  <title>OG Image Generator — Live Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -245,7 +245,7 @@
       ctx.stroke();
       ctx.restore();
 
-      // ⑥ Title — "Idol Live Tracker"
+      // ⑥ Title — "Live Tracker"
       ctx.save();
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
@@ -254,7 +254,7 @@
       ctx.shadowColor = 'rgba(167,139,250,0.6)';
       ctx.shadowBlur = 28;
       ctx.fillStyle = 'rgba(167,139,250,0.3)';
-      ctx.fillText('Idol Live Tracker', PX + 2, CY + 24);
+      ctx.fillText('Live Tracker', PX + 2, CY + 24);
       // Main gradient text
       const titleGrad = ctx.createLinearGradient(PX, CY - 70, PX + 620, CY + 30);
       titleGrad.addColorStop(0,   '#ffffff');
@@ -262,7 +262,7 @@
       titleGrad.addColorStop(1,   '#c4b5fd');
       ctx.fillStyle = titleGrad;
       ctx.shadowBlur = 0;
-      ctx.fillText('Idol Live Tracker', PX, CY + 22);
+      ctx.fillText('Live Tracker', PX, CY + 22);
       ctx.restore();
 
       // ⑦ Japanese subtitle
@@ -272,11 +272,11 @@
       ctx.font = '400 29px system-ui, -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(196,181,253,0.75)';
       ctx.letterSpacing = '0.04em';
-      ctx.fillText('アイドル ライブ日程 追跡ツール', PX, CY + 78);
+      ctx.fillText('ライブ日程 追跡ツール', PX, CY + 78);
       ctx.restore();
 
       // ⑧ Feature chips
-      const chips = ['スケジュール自動取得', 'Notion 連携', 'Discord 通知'];
+      const chips = ['スケジュール自動取得', 'Discord 通知'];
       let chipX = PX;
       const chipY = CY + 126;
       chips.forEach(label => {
