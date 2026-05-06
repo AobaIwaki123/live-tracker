@@ -7,7 +7,7 @@ FRONTEND  := $(REGISTRY)/$(APP)-frontend:$(GIT_REV)
 NAMESPACE := live-tracker
 MANIFESTS := k8s/manifests
 
-.PHONY: build push release apply status logs scrape exec-scrape summary og help
+.PHONY: build push release apply status logs scrape exec-scrape summary og dev help
 
 help: ## Show this help
 	@awk 'BEGIN{FS=":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -58,6 +58,12 @@ summary: ## Manually trigger a summary job now
 	kubectl create job --from=cronjob/summary summary-$(shell date +%s) -n $(NAMESPACE)
 
 # ── Dev ───────────────────────────────────────────────────────────────────────
+
+dev: ## Start backend (FastAPI :8000) and frontend (Vite :5173) in parallel
+	@trap 'kill 0' INT; \
+	uv run uvicorn src.web.app:app --reload --port 8000 & \
+	cd frontend && npm run dev & \
+	wait
 
 og: ## Open OG image generator in browser
 	open frontend/generate-og.html
