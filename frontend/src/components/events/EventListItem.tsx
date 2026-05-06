@@ -66,12 +66,9 @@ export default function EventListItem({
         />
       )}
 
-      <div className="flex flex-col sm:flex-row gap-4 p-6 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row gap-4 p-6 sm:p-8 w-full min-w-0">
         {/* Date block */}
         <div className="flex flex-row sm:flex-col items-center justify-center sm:justify-start gap-2 sm:gap-1 min-w-[60px] text-center border-b sm:border-b-0 sm:border-r border-border pb-3 sm:pb-0 sm:pr-4">
-          <span className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/60 leading-none">
-            {dateObj ? MONTHS[dateObj.getMonth()] : "---"}
-          </span>
           <span
             className="text-4xl font-black leading-none"
             style={{ color: isPast ? undefined : accentColor }}
@@ -85,7 +82,7 @@ export default function EventListItem({
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          <div className="flex flex-col xl:flex-row items-start xl:items-start justify-between gap-2 mb-4">
+          <div className="flex flex-col xl:flex-row items-start xl:items-start justify-between gap-2 mb-6">
             <h3 className="font-black text-2xl leading-tight line-clamp-2 tracking-tighter group-hover/item:text-primary transition-colors">{title}</h3>
             <CountdownBadge label={countdown.label} variant={countdown.variant} />
           </div>
