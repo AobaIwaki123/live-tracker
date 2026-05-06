@@ -30,29 +30,29 @@ artists:
       venue: p.mt-2::regex(🏰会場：([^\n]+))
       start_time: p.mt-2::regex(開演(\d+:\d+))
       ticket_url: p.mt-2 a::attr(href)
-- name: hnz
-  display_name: 日向坂46
-  theme_color: '#1E88E5'
-  image_url: https://picsum.photos/seed/hnz/400/300
-  base_url: https://www.hinatazaka46.com/s/official
-  analyzed_at: '2026-05-05'
-  fetch:
-    dynamic: true
-  navigation:
-    type: api_endpoint
-    endpoint: /s/official/api/list/shakehands_list
-    method: GET
-    range_months: 3
-  response:
-    format: json_object_with_array
-    array_path: shakehands
-    mapping:
-      id: code
-      title: title
-      date: date
-      date_format: '%Y%m%d'
-  detail:
-    enabled: false
+# - name: hnz
+#   display_name: 日向坂46
+#   theme_color: '#1E88E5'
+#   image_url: https://picsum.photos/seed/hnz/400/300
+#   base_url: https://www.hinatazaka46.com/s/official
+#   analyzed_at: '2026-05-05'
+#   fetch:
+#     dynamic: true
+#   navigation:
+#     type: api_endpoint
+#     endpoint: /s/official/api/list/shakehands_list
+#     method: GET
+#     range_months: 3
+#   response:
+#     format: json_object_with_array
+#     array_path: shakehands
+#     mapping:
+#       id: code
+#       title: title
+#       date: date
+#       date_format: '%Y%m%d'
+#   detail:
+#     enabled: false
 - name: shallm
   display_name: shallm
   theme_color: '#7C3AED'
