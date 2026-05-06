@@ -155,11 +155,12 @@ class NotionClient:
 
         while True:
             try:
-                kwargs: dict[str, Any] = {"database_id": self._db_id, "page_size": 100}
+                kwargs: dict[str, Any] = {"page_size": 100}
                 if cursor:
                     kwargs["start_cursor"] = cursor
 
-                response = self._client.databases.query(**kwargs)
+                # notion-client v3: databases.query → data_sources.query(id, ...)
+                response = self._client.data_sources.query(self._db_id, **kwargs)
             except APIResponseError as exc:
                 logger.error("Notion DB クエリ中にエラーが発生しました: %s", exc)
                 break
