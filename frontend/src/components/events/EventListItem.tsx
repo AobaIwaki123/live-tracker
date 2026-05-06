@@ -2,7 +2,6 @@ import { MapPin, Clock, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCountdown } from "@/lib/countdown";
 
-const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 interface EventListItemProps {

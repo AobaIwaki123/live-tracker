@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: live-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/aobaiwaki123/live-tracker-backend:v20260506-01
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: live-tracker-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: live-tracker-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: live-tracker
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# 毎日 9:00 JST (= 00:00 UTC) にスクレイピングを実行する
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scraper
+  namespace: live-tracker
+spec:
+  schedule: "0 0 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: scraper
+              image: ghcr.io/aobaiwaki123/live-tracker-backend:v20260506-01
+              command: ["uv", "run", "python", "src/main.py", "scrape"]
+              envFrom:
+                - secretRef:
+                    name: live-tracker-secrets
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "1000m"
+                  memory: "1Gi"
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: live-tracker-data
+---
+# 毎週月曜 9:00 JST (= 00:00 UTC) に Discord サマリーを送信する
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: summary
+  namespace: live-tracker
+spec:
+  schedule: "0 0 * * 1"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: summary
+              image: ghcr.io/aobaiwaki123/live-tracker-backend:v20260506-01
+              command: ["uv", "run", "python", "src/main.py", "summary"]
+              envFrom:
+                - secretRef:
+                    name: live-tracker-secrets
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: live-tracker-data
