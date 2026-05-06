@@ -52,20 +52,16 @@ uv run python src/main.py summary                              # 直近 14 日�
 
 ## Docker Build & Deploy
 
-**バージョニング**: `vYYYYMMDD-NN` 形式（例: `v20260506-01`）。ArgoCD のイメージ追跡に使う。
-イメージを更新したら `k8s/manifests/backend.yaml` および `frontend.yaml` のタグを更新してコミット・プッシュする。ArgoCD が自動で同期する。
+**バージョニング**: `git rev-parse --short HEAD`（コミット SHA）をイメージタグとして使う。`make release` が自動で処理する。
 
 ```bash
-# Build (linux/amd64 固定)
-docker build --platform linux/amd64 -t ghcr.io/aobaiwaki123/live-tracker-backend:v20260506-01 .
-docker build --platform linux/amd64 -t ghcr.io/aobaiwaki123/live-tracker-frontend:v20260506-01 ./frontend
-
-# Push to GHCR
-docker push ghcr.io/aobaiwaki123/live-tracker-backend:v20260506-01
-docker push ghcr.io/aobaiwaki123/live-tracker-frontend:v20260506-01
+make release   # build → push → manifest 更新 → git commit → push
+make status    # pod / cronjob / pvc の状態確認
+make logs      # backend ログ
+make scrape    # scraper を今すぐ手動実行
 ```
 
-## k8s デプロイ手順
+## k8s デプロイ手順（初回のみ）
 
 ```bash
 # 1. Secret を手動で作成（Git には入れない）
@@ -73,17 +69,20 @@ cp k8s/manifests/secret.yaml.example k8s/manifests/secret.yaml
 # secret.yaml の値を埋める
 kubectl apply -f k8s/manifests/secret.yaml
 
-# 2. ArgoCD Application を登録（初回のみ）
+# 2. 全 manifest を適用
+make apply
+
+# 3. ArgoCD Application を登録
 kubectl apply -f k8s/argocd/app.yml
 
-# 3. 以降はイメージタグを manifest に書いてコミット・プッシュするだけ
-#    ArgoCD が k8s/manifests/ を自動 sync する
+# 以降のデプロイは make release だけ
 ```
 
 **構成**:
 - `frontend` (nginx): HTML 配信 + `/api`, `/img` を backend にプロキシ
 - `backend` (FastAPI): API サーバー、ポート 8000
 - `scraper` (CronJob): 毎日 0:00 UTC (9:00 JST) に `scrape` を実行
+- `summary` (CronJob): 毎週月曜 0:00 UTC (9:00 JST) に Discord サマリー送信
 - `live-tracker-data` (PVC): SQLite `data/events.db` を永続化
 
 ## Architecture

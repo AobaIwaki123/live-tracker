@@ -35,8 +35,8 @@ def load_artists() -> list[dict[str, Any]]:
     artists = config.get("artists", [])
     for artist in artists:
         name = artist.get("name")
-        if name and (IMG_DIR / f"{name}.png").exists():
-            artist["image_url"] = f"/img/{name}.png"
+        if name and (IMG_DIR / f"{name}.jpg").exists():
+            artist["image_url"] = f"/img/{name}.jpg"
     return artists
 
 
