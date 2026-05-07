@@ -257,7 +257,32 @@ artists:
     dynamic: false
   navigation:
     type: path_segment
-    pattern: https://not-equal-me.jp/schedule/list/{year}/{month}/
+    pattern: https://not-equal-me.jp/schedule/?year={year}&month={month:02d}
+    range_months: 3
+  selectors:
+    wrapper: div.calendarBody div.cell
+    event_list: div[class^="live"]
+    title: a span.tit
+    date: span.date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+    id: a::attr(href)
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors: {}
+- name: nearly-equal-joy
+  display_name: ≒JOY
+  theme_color: '#fff700'
+  image_url: https://livedoor.blogimg.jp/ske_live-apparel/imgs/a/d/ad1a4d26.jpg
+  base_url: https://nearly-equal-joy.jp/schedule/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/schedule/?year={year}&month={month:02d}'
     range_months: 3
   selectors:
     wrapper: div.calendarBody div.cell
