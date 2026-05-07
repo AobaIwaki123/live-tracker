@@ -2,14 +2,20 @@ import yaml
 import asyncio
 import uuid
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import Any
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 from src.store.local_store import LocalStore
+from src.analyzer.site_analyzer import analyze_site, capture_page
+from src.analyzer.config_writer import write_site_config
+
+# .env ファイルを読み込む
+load_dotenv()
 
 app = FastAPI(title="Live Tracker API")
 
@@ -33,9 +39,14 @@ class JobManager:
                 del self.connections[job_id]
 
     async def broadcast(self, job_id: str, message: dict):
+        # メモリにステータスを保持
+        self.active_jobs[job_id] = message
         if job_id in self.connections:
             for connection in self.connections[job_id]:
-                await connection.send_json(message)
+                try:
+                    await connection.send_json(message)
+                except:
+                    pass
 
 job_manager = JobManager()
 
@@ -48,49 +59,46 @@ class ArtistCreatePayload(BaseModel):
 
 async def create_artist_task(job_id: str, payload: ArtistCreatePayload):
     try:
-        # 1. Start analysis
-        await job_manager.broadcast(job_id, {"status": "processing", "message": f"Analyzing {payload.display_name}'s URL..."})
-        await asyncio.sleep(2)  # Simulate analysis delay
-
-        # 2. Update yaml
         config_path = Path(__file__).resolve().parent.parent.parent / "config" / "artists.yaml"
-        if not config_path.exists():
-            await job_manager.broadcast(job_id, {"status": "error", "message": "config/artists.yaml not found"})
+
+        # 1. Capture Page
+        await job_manager.broadcast(job_id, {"status": "processing", "message": f"Capturing {payload.display_name}'s page..."})
+        html, logs = await asyncio.to_thread(capture_page, payload.base_url)
+
+        # 2. Analyze Site
+        await job_manager.broadcast(job_id, {"status": "processing", "message": f"Analyzing site structure with AI..."})
+        site_config = await asyncio.to_thread(analyze_site, payload.base_url, html, logs)
+
+        if site_config is None:
+            await job_manager.broadcast(job_id, {"status": "error", "message": "AI analysis failed. Please check the URL."})
             return
 
+        # 3. Save initial yaml (MetaData)
         with open(config_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         artists = data.get("artists", [])
-        
-        # 重複チェック
         if any(a.get("name") == payload.name for a in artists):
             await job_manager.broadcast(job_id, {"status": "error", "message": f"Artist ID '{payload.name}' already exists"})
             return
 
-        # 新規アーティストを追加
+        # まず基本情報を追加
         new_artist = {
             "name": payload.name,
             "display_name": payload.display_name,
             "theme_color": payload.theme_color,
             "image_url": payload.image_url,
             "base_url": payload.base_url,
-            "fetch": {"dynamic": False},
-            "navigation": {"type": "single_page", "range_months": 3},
-            "selectors": {
-                "event_list": "",
-                "title": "",
-                "date": "",
-                "venue": "",
-            }
         }
         artists.append(new_artist)
 
-        # アトミックな書き換え (簡易版)
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
-        await job_manager.broadcast(job_id, {"status": "completed", "message": f"Successfully added {payload.display_name}!"})
+        # 4. Merge AI analysis results
+        await asyncio.to_thread(write_site_config, config_path, payload.name, site_config)
+
+        await job_manager.broadcast(job_id, {"status": "completed", "message": f"Successfully analyzed and added {payload.display_name}!"})
     except Exception as e:
         await job_manager.broadcast(job_id, {"status": "error", "message": str(e)})
 
@@ -187,8 +195,17 @@ async def get_all_events():
 @app.post("/api/artists/create")
 async def create_artist(payload: ArtistCreatePayload, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
+    # 初期ステータスを設定
+    job_manager.active_jobs[job_id] = {"status": "pending", "message": "Starting job..."}
     background_tasks.add_task(create_artist_task, job_id, payload)
     return {"job_id": job_id}
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    if job_id not in job_manager.active_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job_manager.active_jobs[job_id]
 
 
 @app.websocket("/api/ws/jobs/{job_id}")
@@ -196,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     await job_manager.connect(job_id, websocket)
     try:
         while True:
-            # クライアントからのメッセージ待機（キープアライブ等）
+            # クライアントからのメッセージ待機
             await websocket.receive_text()
     except WebSocketDisconnect:
         job_manager.disconnect(job_id, websocket)
@@ -206,11 +223,9 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 async def download_config():
     if not CONFIG_PATH.exists():
         raise HTTPException(status_code=404, detail="Config file not found")
-    from fastapi.responses import FileResponse
     return FileResponse(CONFIG_PATH, media_type="application/x-yaml", filename="artists.yaml")
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

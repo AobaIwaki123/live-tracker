@@ -21,38 +21,43 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
 
     setIsOpen(true);
     setStatus("processing");
-    setMessage("Connecting to server...");
+    setMessage("Initializing...");
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    // 開発環境と本番環境の両方に対応
-    const wsUrl = `${protocol}//${host}/api/ws/jobs/${jobId}`;
-    const socket = new WebSocket(wsUrl);
+    let pollInterval: NodeJS.Timeout;
 
-    socket.onmessage = (event) => {
-      const data: JobUpdate = JSON.parse(event.data);
-      setStatus(data.status);
-      setMessage(data.message);
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/jobs/${jobId}`);
+        if (!response.ok) throw new Error("Failed to fetch job status");
+        
+        const data: JobUpdate = await response.json();
+        setStatus(data.status);
+        setMessage(data.message);
 
-      if (data.status === "completed") {
-        setTimeout(() => {
-          setIsOpen(false);
-          if (onComplete) onComplete();
-        }, 2000);
+        if (data.status === "completed") {
+          clearInterval(pollInterval);
+          setTimeout(() => {
+            setIsOpen(false);
+            if (onComplete) onComplete();
+          }, 2000);
+        } else if (data.status === "error") {
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+        setStatus("error");
+        setMessage("Connection error. Please check your network.");
+        clearInterval(pollInterval);
       }
     };
 
-    socket.onerror = () => {
-      setStatus("error");
-      setMessage("WebSocket connection error");
-    };
-
-    socket.onclose = () => {
-      console.log("WebSocket connection closed");
-    };
+    // 初回実行
+    poll();
+    // 1秒ごとにポーリング
+    pollInterval = setInterval(poll, 1000);
 
     return () => {
-      socket.close();
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [jobId, onComplete]);
 
@@ -71,25 +76,32 @@ export function JobProgressDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-sm overflow-hidden rounded-[2rem] bg-card p-8 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      <div className="w-full max-w-sm overflow-hidden rounded-[2.5rem] bg-white p-8 shadow-[0_32px_64px_-16px_rgba(109,40,217,0.2)] border border-purple-100 animate-in zoom-in-95 duration-300">
         <div className="flex flex-col items-center text-center space-y-6">
-          {status === "processing" && (
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          )}
+          {status === "processing" || status === "pending" ? (
+            <div className="relative flex items-center justify-center">
+              <div className="absolute h-20 w-20 rounded-full border-4 border-purple-100 animate-ping" />
+              <Loader2 className="h-16 w-16 animate-spin text-purple-600 relative z-10" />
+            </div>
+          ) : null}
           {status === "completed" && (
-            <CheckCircle2 className="h-16 w-16 text-green-500 animate-in zoom-in duration-500" />
+            <div className="h-20 w-20 rounded-full bg-green-50 flex items-center justify-center">
+              <CheckCircle2 className="h-12 w-12 text-green-500 animate-in zoom-in duration-500" />
+            </div>
           )}
           {status === "error" && (
-            <AlertCircle className="h-16 w-16 text-destructive animate-in shake duration-500" />
+            <div className="h-20 w-20 rounded-full bg-red-50 flex items-center justify-center">
+              <AlertCircle className="h-12 w-12 text-red-500 animate-in shake duration-500" />
+            </div>
           )}
           
           <div className="space-y-2">
-            <h3 className="text-xl font-black tracking-tight">
-              {status === "processing" ? "Updating..." : 
-               status === "completed" ? "Success!" : "Error"}
+            <h3 className="text-2xl font-black tracking-tight text-slate-900">
+              {status === "completed" ? "Success!" : 
+               status === "error" ? "Something went wrong" : "Processing..."}
             </h3>
-            <p className="text-muted-foreground font-medium italic">
+            <p className="text-slate-500 font-bold italic tracking-tight">
               {message}
             </p>
           </div>

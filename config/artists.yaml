@@ -4,9 +4,9 @@ artists:
   theme_color: '#E91E8C'
   image_url: https://picsum.photos/seed/avam/400/300
   base_url: https://avam-fc.com/schedule
-  analyzed_at: '2026-05-05'
+  analyzed_at: '2026-05-07'
   fetch:
-    dynamic: true
+    dynamic: false
   navigation:
     type: api_endpoint
     endpoint: /api/schedule/get
@@ -25,11 +25,8 @@ artists:
       date_format: '%Y-%m-%d'
   detail:
     enabled: true
-    url_pattern: '{base_url}/detail/{id}?d={date}'
-    selectors:
-      venue: p.mt-2::regex(🏰会場：([^\n]+))
-      start_time: p.mt-2::regex(開演(\d+:\d+))
-      ticket_url: p.mt-2 a::attr(href)
+    url_pattern: /schedule/detail/{id}?d={date}
+    selectors: {}
 - name: shallm
   display_name: shallm
   theme_color: '#7C3AED'
@@ -137,22 +134,23 @@ artists:
       venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
       ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
 - name: dena
+  display_name: a
+  theme_color: '#888888'
+  image_url: https://sp.baystars.co.jp/images/team/logo_primary.png
   base_url: https://www.baystars.co.jp/game/schedule/2026
-  display_name: 横浜DeNAベイスターズ
-  theme_color: '#003F8E'
   analyzed_at: '2026-05-07'
   fetch:
     dynamic: false
   navigation:
     type: path_segment
-    pattern: '{base_url_origin}/game/schedule/{year}/{month:02d}'
-    range_months: 12
+    pattern: /game/schedule/{year}/{month:02d}
+    range_months: 3
   selectors:
     event_list: td.calendar--hasmatch
     title: p.name
     date: p.day
     date_format: '%d'
-    venue: p.location::regex((.+?)\d{1,2}:\d{2})
+    venue: p.location::regex(^(.+?)(?=\d{1,2}:\d{2}))
     ticket_url: p.button--ticket a::attr(href)
   detail:
     enabled: false

@@ -30,23 +30,25 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    START([base_url 受取]) --> FETCH[DynamicFetcher でページ取得\n+ XHR/Fetch ネットワークキャプチャ]
-    FETCH --> AI{Claude API\n構造解析}
+    START([base_url 受取]) --> FETCH[Playwright でページ取得\nフル HTML + XHR/Fetch ネットワークキャプチャ]
+    FETCH --> SNIPPET[BeautifulSoup で\nイベント要素スニペット抽出\n出現回数順・大型コンテナ除外]
 
-    AI -->|XHRで schedule系APIを検出| API_TYPE[type: api_endpoint\nendpoint / method / body抽出]
-    AI -->|URL に ?d= / ?month= 等| QP_TYPE[type: query_param\nparam / format 抽出]
-    AI -->|URLパスに年月| PS_TYPE[type: path_segment\npattern 抽出]
-    AI -->|next/prevリンクあり| PL_TYPE[type: pagination_links\nnext_selector 抽出]
-    AI -->|上記いずれでもない| SP_TYPE[type: single_page]
+    SNIPPET --> TURN1[Turn 1\nHTML先頭20000字 + スニペット + ネットワークログ\n→ AI 初期設定生成]
 
-    API_TYPE --> YAML_OUT
-    QP_TYPE --> YAML_OUT
-    PS_TYPE --> YAML_OUT
-    PL_TYPE --> YAML_OUT
-    SP_TYPE --> YAML_OUT
+    TURN1 --> CHECK{完全性チェック\n_check_completeness}
+    CHECK -->|不足フィールドあり| FOLLOWUP[フォローアップターン\n不足フィールドを指摘して補完要求\n最大 2 回]
+    FOLLOWUP --> CHECK
+    CHECK -->|全フィールド揃った| VALIDATE
 
-    YAML_OUT([YAML 設定ファイルへ書き戻し\n人間がレビュー])
+    VALIDATE[バリデーション\n実 URL をフェッチして event_list\nセレクタで要素数を確認]
+    VALIDATE -->|1件以上| YAML_OUT
+    VALIDATE -->|0件| VFEEDBACK[バリデーションフォローアップ\n実ページ HTML スニペットを渡して再修正\n最大 2 回]
+    VFEEDBACK --> VALIDATE
+
+    YAML_OUT([YAML 設定ファイルへ書き戻し])
 ```
+
+詳細な設計・工夫点は [analyze-loop-design.md](./analyze-loop-design.md) を参照。
 
 ---
 
@@ -71,32 +73,57 @@ flowchart LR
 
 ---
 
-## 4. シーケンス図 — analyze コマンド
+## 4. シーケンス図 — analyze コマンド（3 フェーズ自己修正ループ）
 
 ```mermaid
 sequenceDiagram
     actor User
     participant CLI as main.py analyze
-    participant Fetcher as DynamicFetcher
+    participant Playwright
     participant Site as アーティスト公式サイト
-    participant Claude as Claude API
+    participant BS4 as BeautifulSoup
+    participant AI as ChatSession (Claude/Gemini)
+    participant Fetcher as Scrapling Fetcher
     participant Config as artists.yaml
 
-    User->>CLI: python main.py analyze --artist avam-fc
-    CLI->>Config: base_url 読み込み
-    Config-->>CLI: https://avam-fc.com/schedule
+    User->>CLI: python main.py analyze --artist X
+    CLI->>Playwright: capture_page(base_url)
+    Playwright->>Site: ブラウザ起動・networkidle 待機
+    Site-->>Playwright: フル HTML + XHR ログ
+    Playwright-->>CLI: (full_html, network_logs)
 
-    CLI->>Fetcher: fetch(url, capture_network=True)
-    Fetcher->>Site: Playwright でブラウザ起動
-    Site-->>Fetcher: HTML + XHRログ
-    Fetcher-->>CLI: (html, network_log)
+    CLI->>BS4: _extract_event_snippets(full_html)
+    Note over BS4: クラス名キーワードで要素抽出<br/>出現回数順ソート・大型コンテナ除外
+    BS4-->>CLI: event_snippets
 
-    CLI->>Claude: analyze_site(html, network_log, base_url)
-    Note over Claude: HTML・ネットワークログを解析し<br/>navigation/selectors/response を推論
-    Claude-->>CLI: SiteConfig (JSON)
+    CLI->>AI: chat_session.send(HTML先頭20000字 + snippets + logs)
+    Note over AI: Phase 1: 初期 SiteConfig 生成
+    AI-->>CLI: SiteConfig (JSON)
 
-    CLI->>Config: navigation + selectors を YAML に書き戻し
-    CLI->>User: 解析結果サマリ出力（レビューを促す）
+    loop Phase 2: 完全性チェック (最大 2 回)
+        CLI->>CLI: _check_completeness(config)
+        alt 不足フィールドあり
+            CLI->>AI: chat_session.send("X が不足しています")
+            AI-->>CLI: 補完した SiteConfig (JSON)
+        end
+    end
+
+    loop Phase 3: バリデーション (最大 2 回)
+        CLI->>Fetcher: fetch(_build_validation_url(config))
+        Fetcher->>Site: HTTP GET
+        Site-->>Fetcher: HTML
+        Fetcher-->>CLI: page
+        CLI->>CLI: page.css(event_list_selector)
+        alt 0 件
+            CLI->>BS4: _extract_event_snippets(page.html)
+            BS4-->>CLI: val_snippets
+            CLI->>AI: chat_session.send("0件でした + val_snippets")
+            AI-->>CLI: 修正した SiteConfig (JSON)
+        end
+    end
+
+    CLI->>Config: write_site_config(yaml_path, name, config)
+    CLI->>User: 完了メッセージ
 ```
 
 ---

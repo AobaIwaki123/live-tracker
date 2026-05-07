@@ -9,3 +9,4 @@ events.db-shm
 events.db-wal
 k8s/manifests/secret.yaml
 .DS_Store
+tmp/
