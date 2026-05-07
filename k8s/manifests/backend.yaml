@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/aobaiwaki123/live-tracker-backend:6eec05d
+          image: ghcr.io/aobaiwaki123/live-tracker-backend:90aaf16
           ports:
             - containerPort: 8000
           envFrom:
@@ -64,7 +64,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: scraper
-              image: ghcr.io/aobaiwaki123/live-tracker-backend:6eec05d
+              image: ghcr.io/aobaiwaki123/live-tracker-backend:90aaf16
               command: ["uv", "run", "python", "src/main.py", "scrape"]
               envFrom:
                 - secretRef:
@@ -100,7 +100,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: summary
-              image: ghcr.io/aobaiwaki123/live-tracker-backend:6eec05d
+              image: ghcr.io/aobaiwaki123/live-tracker-backend:90aaf16
               command: ["uv", "run", "python", "src/main.py", "summary"]
               envFrom:
                 - secretRef:
