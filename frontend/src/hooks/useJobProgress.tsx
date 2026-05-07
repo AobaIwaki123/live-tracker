@@ -23,7 +23,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
     setStatus("processing");
     setMessage("Initializing...");
 
-    let pollInterval: NodeJS.Timeout;
+    let pollInterval: ReturnType<typeof setInterval>;
 
     const poll = async () => {
       try {

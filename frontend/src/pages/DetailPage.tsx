@@ -1,5 +1,6 @@
 import { useMemo, useLayoutEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, Music2, X, Settings } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvents } from "@/hooks/useEvents";
@@ -35,8 +36,9 @@ function monthLabel(key: string): string {
 
 export default function DetailPage() {
   const { artistId } = useParams<{ artistId: string }>();
-  const { data: artists, mutate: mutateArtists } = useArtists();
-  const { data: events, isLoading, error, mutate: mutateEvents } = useEvents(artistId ?? "");
+  const queryClient = useQueryClient();
+  const { data: artists } = useArtists();
+  const { data: events, isLoading, error } = useEvents(artistId ?? "");
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -46,8 +48,8 @@ export default function DetailPage() {
   const { status, message, isOpen: isJobProgressOpen } = useJobProgress(activeJobId, () => {
     setActiveJobId(null);
     setIsEditOpen(false);
-    mutateArtists();
-    mutateEvents();
+    queryClient.invalidateQueries({ queryKey: ["artists"] });
+    queryClient.invalidateQueries({ queryKey: ["events", artistId] });
   });
 
   useLayoutEffect(() => {
