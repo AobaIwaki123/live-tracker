@@ -25,7 +25,7 @@ artists:
       date_format: '%Y-%m-%d'
   detail:
     enabled: true
-    url_pattern: /schedule/detail/{id}?d={date}
+    url_pattern: '{base_url_origin}/schedule/detail/{id}?d={date}'
     selectors: {}
 - name: shallm
   display_name: shallm
@@ -247,3 +247,28 @@ artists:
     id: a::attr(href)
   detail:
     enabled: false
+- name: not-equal-me
+  display_name: ≠ME
+  theme_color: '#a600ff'
+  image_url: https://news.kingrecords.co.jp/wp/wp-content/uploads/2024/10/7c4e866123723e03ef075d660bf377c4.jpg
+  base_url: https://not-equal-me.jp/schedule/
+  analyzed_at: '2026-05-08'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: https://not-equal-me.jp/schedule/list/{year}/{month}/
+    range_months: 3
+  selectors:
+    wrapper: div.calendarBody div.cell
+    event_list: div[class^="live"]
+    title: a span.tit
+    date: span.date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+    id: a::attr(href)
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors: {}

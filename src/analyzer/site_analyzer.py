@@ -685,6 +685,12 @@ def _check_completeness(config: SiteConfig) -> list[str]:
         missing.append("navigation.type")
         return missing
 
+    # Contradictory fields check
+    if nav_type == "api_endpoint" and config.navigation.get("pattern"):
+        missing.append("navigation.pattern (api_endpoint should not have pattern, use endpoint instead)")
+    if nav_type == "path_segment" and config.navigation.get("endpoint"):
+        missing.append("navigation.endpoint (path_segment should not have endpoint, use pattern instead)")
+
     if nav_type == "api_endpoint":
         if not config.navigation.get("endpoint"):
             missing.append("navigation.endpoint")
