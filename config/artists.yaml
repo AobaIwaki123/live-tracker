@@ -200,3 +200,29 @@ artists:
     selectors:
       venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
       ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
+- name: ms
+  display_name: MORE STAR
+  theme_color: '#ff0a0a'
+  image_url: https://i.ytimg.com/vi/BE4oDfBxqkk/maxresdefault.jpg
+  base_url: https://morestar.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule a.box
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)

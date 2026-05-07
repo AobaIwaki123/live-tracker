@@ -198,12 +198,12 @@ def get_ai_provider() -> AIProvider:
             )
         return GeminiProvider(api_key=api_key)
 
-    # auto mode
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if anthropic_key:
+    # auto mode — Anthropic keys always start with "sk-ant-"
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if anthropic_key.startswith("sk-ant-"):
         return ClaudeProvider(api_key=anthropic_key)
 
-    gemini_key = os.environ.get("GEMINI_API_KEY")
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
     if gemini_key:
         return GeminiProvider(api_key=gemini_key)
 

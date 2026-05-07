@@ -7,7 +7,7 @@ FRONTEND  := $(REGISTRY)/$(APP)-frontend:$(GIT_REV)
 NAMESPACE := live-tracker
 MANIFESTS := k8s/manifests
 
-.PHONY: build push release apply status logs scrape exec-scrape summary og dev help
+.PHONY: build push release apply status logs scrape exec-scrape summary og dev help pull-config
 
 help: ## Show this help
 	@awk 'BEGIN{FS=":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -34,6 +34,10 @@ release: ## Full release: build → push → update manifests → git commit →
 	git push
 
 # ── k8s ───────────────────────────────────────────────────────────────────────
+
+pull-config: ## PVC 上の artists.yaml をローカルの config/artists.yaml に上書きコピー
+	kubectl cp $(NAMESPACE)/$$(kubectl get pod -n $(NAMESPACE) -l app=backend -o jsonpath='{.items[0].metadata.name}'):/app/data/artists.yaml config/artists.yaml
+	@echo "config/artists.yaml を更新しました"
 
 apply: ## Apply all manifests to k8s (secret は手動で apply)
 	kubectl apply -f $(MANIFESTS)/namespace.yaml
