@@ -200,3 +200,50 @@ artists:
     selectors:
       venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
       ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
+- name: ms
+  display_name: MORE STAR
+  theme_color: '#ff0a0a'
+  image_url: https://i.ytimg.com/vi/BE4oDfBxqkk/maxresdefault.jpg
+  base_url: https://morestar.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule a.box
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
+- name: equal-love
+  display_name: =LOVE
+  theme_color: '#ff14b5'
+  image_url: https://prcdn.freetls.fastly.net/release_image/44168/623/44168-623-b613cda12c2e724b03338589b7b3a713-1600x977.jpg?format=jpeg&auto=webp&fit=bounds&width=2400&height=1260
+  base_url: https://equal-love.jp/schedule/
+  analyzed_at: '2026-05-08'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: https://equal-love.jp/schedule/list/{year}/{month}/
+    range_months: 3
+  selectors:
+    wrapper: li.schedule_entry_box
+    event_list: div.entry
+    date: p.date span.md
+    date_format: '%d'
+    title: a p.tit
+    id: a::attr(href)
+  detail:
+    enabled: false

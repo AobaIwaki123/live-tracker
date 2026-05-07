@@ -51,13 +51,52 @@ HTML とネットワークログから、スケジュール情報の取得方法
 
 優先順位: 実証された api_endpoint > path_segment > query_param > pagination_links > single_page
 
-### ガイドライン
+### ⚠️ CSS セレクタの制限（必読・厳守）
+
+1. **`ancestor::` / `parent::` / XPath 構文は絶対に使用不可**
+   CSS セレクタは親・祖先要素への遡りができません。`ancestor::div span` や `../span` は CSS
+   では存在しない記法です。XPath 構文を生成した場合、スクレイパーが完全に動作しません。
+
+2. **`::attr()` と `::regex()` は連結不可**
+   `a::attr(href)::regex(...)` のように複数の疑似要素を連結することはできません。
+   - href を取得: `a::attr(href)` のみ
+   - テキストに正規表現: `a::regex(pattern)` のみ
+   どちらか一方を選択してください。
+
+3. **日付が親要素にある場合は必ず `wrapper` パターンを使用**
+   イベントが日付コンテナ（親 `<li>` / `<div>`）の中に複数並ぶ構造では、
+   CSS では子要素から親の日付を取得できないため、`selectors.wrapper` を使用してください。
+   → 詳細は「wrapper パターン」セクションを参照
+
+### wrapper パターン（日付が親要素にある構造）
+
+以下のような「日付コンテナ → 複数イベント」の構造は多くの日本のアーティストサイトで見られます:
+
+```html
+<li class="day-box">
+  <span class="date">15</span>      ← 日付は親要素にある
+  <div class="event">イベントA</div> ← 個別イベント
+  <div class="event">イベントB</div>
+</li>
+```
+
+この場合、`wrapper` を使用します:
+- `wrapper`: 日付コンテナのセレクタ（例: `li.day-box`）
+- `event_list`: wrapper 内の個別イベントのセレクタ（例: `div.event`）
+- `date`: wrapper 内の日付セレクタ（例: `span.date`）← wrapper 相対
+- `title` / `id`: event_list 内のセレクタ ← 個別イベント相対
+
+⚠️ wrapper を使わずに `event_list: li.day-box div.event` だけにすると日付が取得できず
+すべてのイベントの日付が null になります。必ず wrapper を設定してください。
+
+### その他のガイドライン
+
 1. **Astro/Next.js 等の動的URL**:
    URLにハッシュ（例: `260505...-AbCd...`）が含まれる場合、それはビルドごとに変わる一時的なディレクトリです。
    HTMLソースからその値を抽出するための正規表現を `navigation.version_dir_regex` に設定し、
    `endpoint` 内で `{version_dir}` プレースホルダーを使用してください。
 2. **特殊なセレクタ記法**:
-   `selectors` や `response.mapping` の値では以下の記法が使用可能です。
+   `selectors` や `response.mapping` の値では以下の記法が使用可能です（連結は不可）:
    - `::attr(name)`: 属性値を取得（例: `a::attr(href)`）
    - `::regex(pattern)`: 正規表現で抽出。グループ1を優先（例: `p::regex(開演\\s*(\\d+:\\d+))`）
 3. **APIレスポンスのネスト**:
@@ -65,7 +104,8 @@ HTML とネットワークログから、スケジュール情報の取得方法
 4. **日付形式 (date_format)**:
    - レスポンスが Unix タイムスタンプ（ミリ秒）の場合は、`date_format` を空文字列 `""` に設定してください。
    - それ以外の場合は `%Y-%m-%d` 等の strftime 形式を指定してください。
-   - HTML に月・日のみ（年なし）で日付が書かれている場合は `date_format: "%d"` を使用し、年月はURLのクエリパラメータから補完できます。
+   - HTML に日のみ（例: `<span>15</span>`）で日付が書かれている場合は `date_format: "%d"`。
+     年月は URL のパスパラメータから補完されます（path_segment / query_param 推奨）。
 5. **混在したデータのフィルタリング**:
    APIレスポンスに複数アーティストが混在している場合、`navigation.filter_artist_ids` や `navigation.filter_category` を活用して絞り込みを行ってください。
 6. **Fanplus プラットフォーム (*.asobisystem.com 等)**:
@@ -78,7 +118,7 @@ HTML とネットワークログから、スケジュール情報の取得方法
 重要: 必ず JSON のみを出力してください。説明文やコードブロック記法（```json など）は一切含めないこと。
 """
 
-# avam-fc.com / Fanplus / Astro の正解設定（Few-shot 例）
+# avam-fc.com / Fanplus / Astro / wrapper の正解設定（Few-shot 例）
 _FEW_SHOT_EXAMPLE = """\
 ### Few-shot 例 1: 実証された API (https://avam-fc.com/schedule)
 
@@ -165,6 +205,47 @@ HTMLに `&quot;versionDir&quot;:&quot;260505...-AbCd...&quot;` が含まれる�
   }
 }
 ```
+
+### Few-shot 例 4: 日付ごとにグループ化されたリスト (wrapper パターン)
+
+HTML が以下のように「日付コンテナ → 複数イベント」の構造になっている場合:
+```html
+<li class="schedule_entry_box">
+  <p class="date"><span class="md">15</span></p>  ← 日付は親 li にある
+  <div class="entry live03">
+    <a href="/schedule/detail/123"><p class="tit">ライブイベント名</p></a>
+  </div>
+  <div class="entry live04">
+    <a href="/schedule/detail/456"><p class="tit">メディア出演名</p></a>
+  </div>
+</li>
+```
+
+月別 URL が `/schedule/list/{year}/{month}/` のような path_segment 構造の場合:
+```json
+{
+  "fetch": {"dynamic": false},
+  "navigation": {
+    "type": "path_segment",
+    "pattern": "https://example.jp/schedule/list/{year}/{month}/",
+    "range_months": 3
+  },
+  "response": {},
+  "selectors": {
+    "wrapper": "li.schedule_entry_box",
+    "event_list": "div.entry",
+    "date": "p.date span.md",
+    "date_format": "%d",
+    "title": "a p.tit",
+    "id": "a::attr(href)"
+  },
+  "detail": {"enabled": false}
+}
+```
+
+⚠️ NG 例（絶対に生成してはいけない）:
+- `"date": "ancestor::li span.date"` → CSS に ancestor:: は存在しない
+- `"id": "a::attr(href)::regex(/detail/(\\d+)/)"` → ::attr() と ::regex() の連結は不可
 """
 
 # 出力 JSON Schema の説明
@@ -206,7 +287,10 @@ _OUTPUT_SCHEMA = """\
   },
   "selectors": {
     // HTML スクレイピング型の場合のみ:
-    "event_list": string,
+    "wrapper": string,      // オプション。日付コンテナ（親要素）のセレクタ。
+                            // 日付が子 event_list 要素でなく親要素にある場合のみ設定。
+                            // 設定した場合、event_list / date は wrapper 内の相対セレクタになる。
+    "event_list": string,   // wrapper がある場合は wrapper 内の個別イベントセレクタ
     "title": string,
     "date": string,
     "date_format": string,  // 必須。日付文字列のフォーマット。例: "%Y-%m-%d" / "%d" / "%Y/%m/%d"
@@ -361,21 +445,27 @@ def analyze_site(base_url: str, html: str, network_logs: list[NetworkLog]) -> Si
         site_config = _parse_site_config(raw_json)
         logger.info("ターン 1 完了: %s", site_config.navigation.get("type"))
 
-        # Phase 2: 不足フィールドを補完するまでループ
+        # Phase 2: 不足フィールド＋アンチパターンを解消するまでループ
         for turn in range(2, _MAX_FOLLOWUP_TURNS + 2):
             missing = _check_completeness(site_config)
-            if not missing:
+            antipatterns = _check_selector_antipatterns(site_config)
+            issues = missing + antipatterns
+            if not issues:
                 logger.info("完全性チェック OK（%d ターン）", turn - 1)
                 break
-            logger.info("ターン %d: 不完全なフィールド: %s", turn, missing)
-            follow_up = _build_followup_prompt(missing, site_config)
+            if missing:
+                logger.info("ターン %d: 不完全なフィールド: %s", turn, missing)
+            if antipatterns:
+                logger.warning("ターン %d: セレクタアンチパターン検出: %s", turn, antipatterns)
+            follow_up = _build_followup_prompt(issues, site_config)
             raw_json = session.send(follow_up)
             updated = _parse_site_config(raw_json)
             site_config = _merge_configs(site_config, updated)
         else:
             remaining = _check_completeness(site_config)
-            if remaining:
-                logger.warning("完全性チェック: 未解決フィールド: %s", remaining)
+            antipatterns = _check_selector_antipatterns(site_config)
+            if remaining or antipatterns:
+                logger.warning("完全性チェック: 未解決: missing=%s, antipatterns=%s", remaining, antipatterns)
 
         # Phase 3: 実スクレイプで 0 件なら AI にフィードバックして再修正
         for vturn in range(1, _MAX_VALIDATION_TURNS + 1):
@@ -470,6 +560,7 @@ def _validate_config(site_config: SiteConfig, base_url: str) -> tuple[int, str]:
     if not event_list_selector:
         return -1, ""
 
+    # フェッチ失敗はスキップ（ネットワーク起因）、セレクタ失敗はフィードバック対象（0を返す）
     try:
         dynamic = site_config.fetch.get("dynamic", False)
         if dynamic:
@@ -481,17 +572,28 @@ def _validate_config(site_config: SiteConfig, base_url: str) -> tuple[int, str]:
 
         if page is None:
             return -1, ""
+    except Exception as exc:
+        logger.warning("バリデーションフェッチ失敗 (%s): %s", url, exc)
+        return -1, ""
 
-        elements = page.css(event_list_selector)
-        count = len(elements)
+    page_html = page.html if hasattr(page, "html") else ""
 
-        page_html = page.html if hasattr(page, "html") else ""
+    try:
+        wrapper_selector = site_config.selectors.get("wrapper", "")
+        if wrapper_selector:
+            wrappers = page.css(wrapper_selector)
+            count = sum(len(w.css(event_list_selector)) for w in wrappers)
+        else:
+            elements = page.css(event_list_selector)
+            count = len(elements)
+
         snippets = _extract_event_snippets(page_html) if count == 0 else ""
         return count, snippets
 
     except Exception as exc:
-        logger.warning("バリデーションフェッチ失敗 (%s): %s", url, exc)
-        return -1, ""
+        # セレクタが無効（ancestor:: 等）な場合 → 0 件としてフィードバックループに入れる
+        logger.warning("セレクタ評価エラー (%s): %s", url, exc)
+        return 0, _extract_event_snippets(page_html)
 
 
 def _build_validation_feedback(
@@ -537,6 +639,34 @@ def _build_validation_feedback(
 0 件になった原因（セレクタの不一致 / navigation.pattern の誤り など）を特定し、
 修正した完全な JSON を出力してください。JSON のみを出力してください。
 """
+
+
+def _check_selector_antipatterns(config: SiteConfig) -> list[str]:
+    """セレクタに既知のアンチパターンが含まれていないかチェックする。
+
+    Args:
+        config: 検査対象の SiteConfig。
+
+    Returns:
+        問題のあるセレクタのフィードバック文字列リスト。空なら問題なし。
+    """
+    problems: list[str] = []
+    for key, val in config.selectors.items():
+        if not isinstance(val, str) or not val:
+            continue
+        if "ancestor::" in val or "parent::" in val or "../" in val:
+            problems.append(
+                f"selectors.{key} = {val!r}: "
+                "CSS に ancestor::/parent::/../ は存在しません（XPath 構文）。"
+                "日付が親要素にある場合は wrapper パターンを使用してください。"
+            )
+        if "::attr(" in val and "::regex(" in val:
+            problems.append(
+                f"selectors.{key} = {val!r}: "
+                "::attr() と ::regex() を 1 つのセレクタに連結することはできません。"
+                "どちらか一方を選択してください。"
+            )
+    return problems
 
 
 def _check_completeness(config: SiteConfig) -> list[str]:

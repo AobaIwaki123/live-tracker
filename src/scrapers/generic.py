@@ -547,9 +547,13 @@ class GenericScraper(BaseScraper):
         """Extract LiveEvent objects from a fetched page using CSS selectors.
 
         Expected keys in ``config.selectors``:
-        - ``event_list``: selector for the list of event container elements
+        - ``wrapper`` (optional): day-container selector when date is on parent element
+        - ``event_list``: individual event selector (relative to wrapper if set)
         - ``title``, ``date``, ``venue``, ``start_time``, ``ticket_url``,
           ``poster_url``, ``other_artists`` (all optional except ``event_list``)
+
+        When ``wrapper`` is set, ``date`` is extracted from each wrapper element,
+        and ``event_list`` is matched within each wrapper.
 
         Args:
             page: Scrapling の Page オブジェクト。
@@ -560,6 +564,10 @@ class GenericScraper(BaseScraper):
             抽出した LiveEvent リスト。
         """
         selectors = config.selectors
+        wrapper_sel = selectors.get("wrapper", "")
+
+        if wrapper_sel:
+            return self._parse_events_with_wrapper(page, config, metadata)
 
         event_list_sel = selectors.get("event_list", "")
         if not event_list_sel:
@@ -584,6 +592,57 @@ class GenericScraper(BaseScraper):
                 if config.detail.enabled:
                     event = self._fetch_detail(event, config)
                 events.append(event)
+
+        return events
+
+    def _parse_events_with_wrapper(
+        self, page: Any, config: ArtistConfig, metadata: dict[str, Any] | None = None
+    ) -> list[LiveEvent]:
+        """日付が親要素（wrapper）にある構造でイベントを抽出する。
+
+        wrapper セレクタで日ごとのコンテナを選択し、各コンテナから日付を取得した上で
+        event_list セレクタで個別イベントを抽出する。1日に複数イベントが存在する場合も
+        すべて取得できる。
+
+        Args:
+            page: Scrapling の Page オブジェクト。
+            config: 対象アーティストの設定。wrapper / event_list / date selectors を使用。
+            metadata: ターゲットに関する追加情報（context_date を含む）。
+
+        Returns:
+            抽出した LiveEvent リスト。
+        """
+        from dataclasses import replace as dc_replace
+
+        selectors = config.selectors
+        wrapper_sel = selectors["wrapper"]
+        event_list_sel = selectors.get("event_list", "")
+        date_fmt = selectors.get("date_format", "")
+        context_date = (metadata or {}).get("date")
+
+        wrappers = page.css(wrapper_sel)
+        if not wrappers:
+            logger.info("wrapper selector '%s' matched no elements", wrapper_sel)
+            return []
+
+        events: list[LiveEvent] = []
+        for wrapper in wrappers:
+            # 日付を wrapper から取得し context_date として利用
+            date_raw = self._resolve_field(wrapper, selectors, "date")
+            if date_raw:
+                wrapper_date = _parse_date(date_raw, context_date, date_fmt)
+            else:
+                wrapper_date = context_date
+
+            wrapper_meta = {"date": wrapper_date}
+
+            containers = wrapper.css(event_list_sel) if event_list_sel else [wrapper]
+            for container in containers:
+                event = self._parse_single_event(container, config, wrapper_meta)
+                if event is not None:
+                    if config.detail.enabled:
+                        event = self._fetch_detail(event, config)
+                    events.append(event)
 
         return events
 
@@ -675,7 +734,7 @@ class GenericScraper(BaseScraper):
         date_raw = self._resolve_field(container, selectors, "date")
         date_fmt = selectors.get("date_format", "")
         context_date = (metadata or {}).get("date")
-        parsed_date = _parse_date(date_raw, context_date, date_fmt) if date_raw else None
+        parsed_date = _parse_date(date_raw, context_date, date_fmt) if date_raw else context_date
 
         if not title:
             logger.debug("Skipping container with empty title under '%s'", config.name)
