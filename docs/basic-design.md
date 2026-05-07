@@ -186,7 +186,7 @@ ClaudeProvider(AIProvider)
   └─ model: claude-sonnet-4-6
 
 GeminiProvider(AIProvider)
-  └─ model: gemini-2.0-flash
+  └─ model: gemini-3.1-pro-preview
 
 get_ai_provider() -> AIProvider
   # 環境変数 AI_PROVIDER (claude|gemini|auto) に応じてインスタンスを返す
@@ -328,7 +328,7 @@ WeeklySummaryNotifier
 | セレクタで要素未検出 | フィールドを空文字として処理を継続 |
 | Notion API エラー | ログ出力してリトライなしでスキップ |
 | 日付パース失敗 | `date=None` として登録 |
-�文字として処理を継続 |
+�文字として処理を継続 |
 | Notion API エラー | ログ出力してリトライなしでスキップ |
 | 日付パース失敗 | `date=None` として登録 |
 None` として登録 |

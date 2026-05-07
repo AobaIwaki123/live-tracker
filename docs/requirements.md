@@ -165,7 +165,7 @@ Tier 3: AI エンリッチメント（enrich コマンドで opt-in 実行）
 |------|------|
 | 実行環境 | macOS / Python 3.10+ |
 | 依存ライブラリ | scrapling[all] / anthropic / google-genai / notion-client / python-dotenv / PyYAML / httpx（pyproject.toml で管理） |
-| AI Provider | Claude API（claude-sonnet-4-6）または Gemini API（gemini-2.0-flash）のどちらか一方が使えれば動作する。環境変数 `AI_PROVIDER` で切り替え可能 |
+| AI Provider | Claude API（claude-sonnet-4-6）または Gemini API（gemini-3.1-pro-preview）のどちらか一方が使えれば動作する。環境変数 `AI_PROVIDER` で切り替え可能 |
 | セキュリティ | 個人開発のため対象外（認証情報は .env で管理するのみ） |
 
 ---

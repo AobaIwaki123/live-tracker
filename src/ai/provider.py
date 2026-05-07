@@ -50,7 +50,7 @@ class _GeminiChatSession(ChatSession):
     def __init__(self, client, system: str) -> None:
         from google.genai import types
         self._chat = client.chats.create(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-pro-preview",
             config=types.GenerateContentConfig(system_instruction=system),
         )
 
@@ -130,7 +130,7 @@ class ClaudeProvider(AIProvider):
 
 
 class GeminiProvider(AIProvider):
-    """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.5-flash）。"""
+    """Google Gemini API を使う AIProvider 実装（モデル: gemini-3.1-pro-preview）。"""
 
     def __init__(self, api_key: str) -> None:
         from google import genai
@@ -148,7 +148,7 @@ class GeminiProvider(AIProvider):
         """
         from google import genai  # noqa: F401 — keep import for type resolution
         response = self.client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-pro-preview",
             contents=f"{system}\n\n{user}",
         )
         return response.text or ""
