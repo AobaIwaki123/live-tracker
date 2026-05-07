@@ -37,8 +37,19 @@ ANALYSIS_SYSTEM_PROMPT = """
 HTML とネットワークログから、スケジュール情報の取得方法を分析し、
 指定の JSON Schema に従って設定を出力してください。
 
-Navigation タイプの優先順位:
-api_endpoint > query_param > path_segment > pagination_links > single_page
+### Navigation タイプの選択基準（重要）
+
+**api_endpoint を選択する条件（すべてを満たすこと）**:
+- ネットワークログにスケジュールデータを返す XHR/Fetch リクエストが実際に含まれること
+- そのレスポンスが JSON 形式でスケジュール情報（タイトル・日付を含む）を返していること
+- HTML 本体にはスケジュールデータが含まれておらず、JS によって動的に取得されていること
+
+**HTML スクレイピング（path_segment / query_param / single_page 等）を優先する条件**:
+- HTML ソースに `<li>` や `<div>` 等でイベントが直接列挙されている場合
+- ネットワークログに明確なスケジュール API が存在しない場合
+- curl 等でも取得できる静的 HTML にスケジュールが含まれている場合
+
+優先順位: 実証された api_endpoint > path_segment > query_param > pagination_links > single_page
 
 ### ガイドライン
 1. **Astro/Next.js 等の動的URL**:
@@ -54,17 +65,26 @@ api_endpoint > query_param > path_segment > pagination_links > single_page
 4. **日付形式 (date_format)**:
    - レスポンスが Unix タイムスタンプ（ミリ秒）の場合は、`date_format` を空文字列 `""` に設定してください。
    - それ以外の場合は `%Y-%m-%d` 等の strftime 形式を指定してください。
+   - HTML に月・日のみ（年なし）で日付が書かれている場合は `date_format: "%d"` を使用し、年月はURLのクエリパラメータから補完できます。
 5. **混在したデータのフィルタリング**:
    APIレスポンスに複数アーティストが混在している場合、`navigation.filter_artist_ids` や `navigation.filter_category` を活用して絞り込みを行ってください。
+6. **Fanplus プラットフォーム (*.asobisystem.com 等)**:
+   これらのサイトはサーバーサイド HTML レンダリングを使用します。API らしいログがあっても
+   スケジュールデータが HTML に直接含まれている場合は HTML スクレイピングを選択してください。
+   典型的なパターン: `navigation.type: path_segment`、
+   `pattern: "{base_url_origin}/live_information/schedule/list/?year={year}&month={month:02d}"`、
+   `event_list: li.sys-schedule a.box_live_2`、`title: p.tit`、`date: span.block--date__date`、`date_format: "%d"`
 
 重要: 必ず JSON のみを出力してください。説明文やコードブロック記法（```json など）は一切含めないこと。
 """
 
-# avam-fc.com の正解設定（Few-shot 例）
+# avam-fc.com / Fanplus / Astro の正解設定（Few-shot 例）
 _FEW_SHOT_EXAMPLE = """\
-### Few-shot 例 1: 標準的な API (https://avam-fc.com/schedule)
+### Few-shot 例 1: 実証された API (https://avam-fc.com/schedule)
 
-ネットワークログに POST /api/schedule/get が含まれる場合の正解設定:
+ネットワークログに `POST /api/schedule/get` が含まれ、
+レスポンスボディが `[{"title": "...", "reception_date": "2026-05-01", ...}]` のような
+スケジュール JSON 配列を返している場合:
 ```json
 {
   "fetch": {"dynamic": true},
@@ -85,9 +105,34 @@ _FEW_SHOT_EXAMPLE = """\
 }
 ```
 
-### Few-shot 例 2: Astro サイト & 特殊記法 (https://example.com/schedule)
+### Few-shot 例 2: Fanplus プラットフォーム HTML (https://example.asobisystem.com/live_information/schedule)
+
+HTML に `<li class="sys-schedule"><a class="box box_live_2">...` が直接含まれ、
+スケジュールデータが静的 HTML として配信されている場合（API ログがあっても HTML を優先）:
+```json
+{
+  "fetch": {"dynamic": false},
+  "navigation": {
+    "type": "path_segment",
+    "pattern": "{base_url_origin}/live_information/schedule/list/?year={year}&month={month:02d}",
+    "range_months": 3
+  },
+  "response": {},
+  "selectors": {
+    "event_list": "li.sys-schedule a.box_live_2",
+    "id": "::attr(href)",
+    "title": "p.tit",
+    "date": "span.block--date__date",
+    "date_format": "%d"
+  },
+  "detail": {"enabled": false}
+}
+```
+
+### Few-shot 例 3: Astro サイト & 特殊記法 (https://example.com/schedule)
 
 ネットワークログに `https://example.com/json/260505...-AbCd.../2026_schedules.json` があり、
+レスポンスが `{"items": [...]}` 形式のスケジュール JSON で、
 HTMLに `&quot;versionDir&quot;:&quot;260505...-AbCd...&quot;` が含まれる場合:
 ```json
 {

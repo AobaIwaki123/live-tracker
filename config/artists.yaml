@@ -158,24 +158,19 @@ artists:
   display_name: FRUITS ZIPPER
   theme_color: '#fa009e'
   image_url: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQklCupeQr8U6qraSlQ_BJQQ5qpMyZ-143tQ4H4yLwMsjabIpjhY09BPVGb7Xd2E6zl76oEI79geLC7l7kayzBbEUzrDtt0oI9y-j6L5g&s=10
-  base_url: https://fruitszipper.asobisystem.com/live_information/schedule
+  base_url: https://fruitszipper.asobisystem.com/live_information/schedule/list/
   analyzed_at: '2026-05-07'
   fetch:
-    dynamic: true
+    dynamic: false
   navigation:
-    type: api_endpoint
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?year={year}&month={month:02d}'
     range_months: 3
-    endpoint: /api/schedule/get
-    method: POST
-    body_template:
-      start: '{month_start}'
-      end: '{month_end}'
-  response:
-    format: json_array
-    array_path: ''
-    mapping:
-      title: title
-      date: reception_date
-      date_format: '%Y-%m-%d'
+  selectors:
+    event_list: li.sys-schedule a.box_live_2
+    id: '::attr(href)'
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
   detail:
     enabled: false
