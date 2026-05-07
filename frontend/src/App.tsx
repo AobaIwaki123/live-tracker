@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Navbar from "@/components/layout/Navbar";
 import HomePage from "@/pages/HomePage";
 import DetailPage from "@/pages/DetailPage";
 import SettingsPage from "@/pages/SettingsPage";
+import { useJobProgress, JobProgressDialog } from "@/hooks/useJobProgress";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +17,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const { status, message, isOpen } = useJobProgress(activeJobId, () => setActiveJobId(null));
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -25,10 +30,19 @@ function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/artist/:artistId" element={<DetailPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route
+                  path="/settings"
+                  element={
+                    <SettingsPage
+                      onJobStart={setActiveJobId}
+                      isProcessing={!!activeJobId}
+                    />
+                  }
+                />
               </Routes>
             </div>
           </main>
+          <JobProgressDialog isOpen={isOpen} status={status} message={message} />
         </div>
       </Router>
     </QueryClientProvider>

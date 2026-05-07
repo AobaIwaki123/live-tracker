@@ -1,25 +1,20 @@
 import { useState } from "react";
-import { Settings, Download, Plus, Music } from "lucide-react";
+import { Settings, Download, Plus } from "lucide-react";
 import { useArtists } from "@/hooks/useArtists";
-import { useEvents } from "@/hooks/useEvents";
-import { useJobProgress, JobProgressDialog } from "@/hooks/useJobProgress";
 import ArtistCreateForm from "@/components/artists/ArtistCreateForm";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function SettingsPage() {
-  const { data: artists, isLoading, mutate: mutateArtists } = useArtists();
-  const { mutate: mutateEvents } = useEvents("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+interface SettingsPageProps {
+  onJobStart: (jobId: string) => void;
+  isProcessing: boolean;
+}
 
-  const { status, message, isOpen: isJobProgressOpen } = useJobProgress(activeJobId, () => {
-    setActiveJobId(null);
-    setIsCreateOpen(false);
-    mutateArtists();
-    mutateEvents();
-  });
+export default function SettingsPage({ onJobStart, isProcessing }: SettingsPageProps) {
+  const { data: artists, isLoading } = useArtists();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const handleSave = async (data: any) => {
+    setIsCreateOpen(false);
     try {
       const response = await fetch("/api/artists/create", {
         method: "POST",
@@ -27,7 +22,7 @@ export default function SettingsPage() {
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      setActiveJobId(result.job_id);
+      onJobStart(result.job_id);
     } catch (err) {
       console.error("Failed to create artist:", err);
     }
@@ -74,7 +69,8 @@ export default function SettingsPage() {
         {/* Create Card */}
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="group relative flex flex-col items-center justify-center p-12 rounded-[3rem] bg-gradient-to-br from-violet-500 to-purple-700 text-white shadow-2xl shadow-purple-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          disabled={isProcessing}
+          className="group relative flex flex-col items-center justify-center p-12 rounded-[3rem] bg-gradient-to-br from-violet-500 to-purple-700 text-white shadow-2xl shadow-purple-200 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100"
         >
           <div className="mb-6 rounded-3xl bg-white/20 p-6 backdrop-blur-xl group-hover:scale-110 transition-transform">
             <Plus className="h-12 w-12" />
@@ -121,15 +117,12 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Modals */}
       {isCreateOpen && (
         <ArtistCreateForm
           onSave={handleSave}
           onCancel={() => setIsCreateOpen(false)}
         />
       )}
-
-      <JobProgressDialog isOpen={isJobProgressOpen} status={status} message={message} />
     </div>
   );
 }

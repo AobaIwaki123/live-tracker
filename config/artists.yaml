@@ -134,8 +134,8 @@ artists:
       venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
       ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
 - name: dena
-  display_name: a
-  theme_color: '#888888'
+  display_name: 横浜DeNAベイスターズ
+  theme_color: '#003F8E'
   image_url: https://sp.baystars.co.jp/images/team/logo_primary.png
   base_url: https://www.baystars.co.jp/game/schedule/2026
   analyzed_at: '2026-05-07'
@@ -152,5 +152,30 @@ artists:
     date_format: '%d'
     venue: p.location::regex(^(.+?)(?=\d{1,2}:\d{2}))
     ticket_url: p.button--ticket a::attr(href)
+  detail:
+    enabled: false
+- name: fz
+  display_name: FRUITS ZIPPER
+  theme_color: '#fa009e'
+  image_url: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQklCupeQr8U6qraSlQ_BJQQ5qpMyZ-143tQ4H4yLwMsjabIpjhY09BPVGb7Xd2E6zl76oEI79geLC7l7kayzBbEUzrDtt0oI9y-j6L5g&s=10
+  base_url: https://fruitszipper.asobisystem.com/live_information/schedule
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: true
+  navigation:
+    type: api_endpoint
+    range_months: 3
+    endpoint: /api/schedule/get
+    method: POST
+    body_template:
+      start: '{month_start}'
+      end: '{month_end}'
+  response:
+    format: json_array
+    array_path: ''
+    mapping:
+      title: title
+      date: reception_date
+      date_format: '%Y-%m-%d'
   detail:
     enabled: false

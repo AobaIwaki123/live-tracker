@@ -1,3 +1,4 @@
+import logging
 import yaml
 import asyncio
 import uuid
@@ -10,9 +11,15 @@ from typing import Any
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
+from src.config import load_config
 from src.store.local_store import LocalStore
+from src.scrapers.generic import GenericScraper
+from src.notion.client import NotionClient
+from src.notifier.discord import DiscordNotifier
 from src.analyzer.site_analyzer import analyze_site, capture_page
 from src.analyzer.config_writer import write_site_config
+
+logger = logging.getLogger(__name__)
 
 # .env ファイルを読み込む
 load_dotenv()
@@ -98,7 +105,25 @@ async def create_artist_task(job_id: str, payload: ArtistCreatePayload):
         # 4. Merge AI analysis results
         await asyncio.to_thread(write_site_config, config_path, payload.name, site_config)
 
-        await job_manager.broadcast(job_id, {"status": "completed", "message": f"Successfully analyzed and added {payload.display_name}!"})
+        # 5. Scrape events for the new artist
+        await job_manager.broadcast(job_id, {"status": "processing", "message": f"Scraping {payload.display_name}'s events..."})
+        try:
+            config = load_config()
+            artist_config = next((a for a in config.artists if a.name == payload.name), None)
+            if artist_config:
+                events = await asyncio.to_thread(GenericScraper().scrape, artist_config)
+                store = LocalStore()
+                created, updated = await asyncio.to_thread(store.upsert_many_diff, events)
+                if config.env.notion_token and config.env.notion_database_id:
+                    await asyncio.to_thread(NotionClient().upsert_events, events)
+                notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
+                await asyncio.to_thread(lambda: notifier.notify_batch(created=created, updated=updated))
+                await job_manager.broadcast(job_id, {"status": "completed", "message": f"Added {payload.display_name}! Scraped {len(events)} events."})
+            else:
+                await job_manager.broadcast(job_id, {"status": "completed", "message": f"Added {payload.display_name}!"})
+        except Exception as scrape_exc:
+            logger.error("[%s] Scrape after create failed: %s", payload.name, scrape_exc)
+            await job_manager.broadcast(job_id, {"status": "completed", "message": f"Added {payload.display_name} (scrape skipped: {scrape_exc})"})
     except Exception as e:
         await job_manager.broadcast(job_id, {"status": "error", "message": str(e)})
 

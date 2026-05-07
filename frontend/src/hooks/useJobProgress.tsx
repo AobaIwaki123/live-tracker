@@ -29,7 +29,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
       try {
         const response = await fetch(`/api/jobs/${jobId}`);
         if (!response.ok) throw new Error("Failed to fetch job status");
-        
+
         const data: JobUpdate = await response.json();
         setStatus(data.status);
         setMessage(data.message);
@@ -39,6 +39,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
           setTimeout(() => {
             setIsOpen(false);
             if (onComplete) onComplete();
+            window.location.reload();
           }, 2000);
         } else if (data.status === "error") {
           clearInterval(pollInterval);
@@ -51,9 +52,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
       }
     };
 
-    // 初回実行
     poll();
-    // 1秒ごとにポーリング
     pollInterval = setInterval(poll, 1000);
 
     return () => {
@@ -64,47 +63,42 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
   return { status, message, isOpen, setIsOpen };
 }
 
-export function JobProgressDialog({ 
-  isOpen, 
-  status, 
-  message 
-}: { 
-  isOpen: boolean; 
-  status: JobStatus; 
-  message: string; 
+export function JobProgressDialog({
+  isOpen,
+  status,
+  message,
+}: {
+  isOpen: boolean;
+  status: JobStatus;
+  message: string;
 }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-sm overflow-hidden rounded-[2.5rem] bg-white p-8 shadow-[0_32px_64px_-16px_rgba(109,40,217,0.2)] border border-purple-100 animate-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center text-center space-y-6">
-          {status === "processing" || status === "pending" ? (
-            <div className="relative flex items-center justify-center">
-              <div className="absolute h-20 w-20 rounded-full border-4 border-purple-100 animate-ping" />
-              <Loader2 className="h-16 w-16 animate-spin text-purple-600 relative z-10" />
-            </div>
-          ) : null}
+    <div className="fixed bottom-6 right-6 z-[200] animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div className="flex items-start gap-3 rounded-2xl bg-white px-5 py-4 shadow-[0_8px_32px_-8px_rgba(109,40,217,0.3)] border border-purple-100 min-w-[280px] max-w-[380px]">
+        <div className="shrink-0 mt-0.5">
+          {(status === "processing" || status === "pending") && (
+            <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+          )}
           {status === "completed" && (
-            <div className="h-20 w-20 rounded-full bg-green-50 flex items-center justify-center">
-              <CheckCircle2 className="h-12 w-12 text-green-500 animate-in zoom-in duration-500" />
-            </div>
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
           )}
           {status === "error" && (
-            <div className="h-20 w-20 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertCircle className="h-12 w-12 text-red-500 animate-in shake duration-500" />
-            </div>
+            <AlertCircle className="h-5 w-5 text-red-500" />
           )}
-          
-          <div className="space-y-2">
-            <h3 className="text-2xl font-black tracking-tight text-slate-900">
-              {status === "completed" ? "Success!" : 
-               status === "error" ? "Something went wrong" : "Processing..."}
-            </h3>
-            <p className="text-slate-500 font-bold italic tracking-tight">
-              {message}
-            </p>
-          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black tracking-tight text-slate-900">
+            {status === "completed"
+              ? "Complete!"
+              : status === "error"
+              ? "Error"
+              : "Processing..."}
+          </p>
+          <p className="text-xs text-slate-500 font-medium mt-0.5 break-words">
+            {message}
+          </p>
         </div>
       </div>
     </div>
