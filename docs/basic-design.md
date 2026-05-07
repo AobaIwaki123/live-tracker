@@ -186,7 +186,7 @@ ClaudeProvider(AIProvider)
   └─ model: claude-sonnet-4-6
 
 GeminiProvider(AIProvider)
-  └─ model: gemini-3.1-pro-preview
+  └─ model: gemini-2.5-flash
 
 get_ai_provider() -> AIProvider
   # 環境変数 AI_PROVIDER (claude|gemini|auto) に応じてインスタンスを返す

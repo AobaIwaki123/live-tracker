@@ -1,4 +1,5 @@
 """AI Provider 抽象クライアント — Claude / Gemini の切り替えを提供する。(参照: docs/basic-design.md § 4-0. AIProvider)"""
+
 import os
 from abc import ABC, abstractmethod
 
@@ -49,8 +50,9 @@ class _GeminiChatSession(ChatSession):
 
     def __init__(self, client, system: str) -> None:
         from google.genai import types
+
         self._chat = client.chats.create(
-            model="gemini-3.1-pro-preview",
+            model="gemini-2.5-flash",
             config=types.GenerateContentConfig(system_instruction=system),
         )
 
@@ -96,6 +98,7 @@ class ClaudeProvider(AIProvider):
 
     def __init__(self, api_key: str) -> None:
         import anthropic
+
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = "claude-sonnet-4-6"
 
@@ -130,10 +133,11 @@ class ClaudeProvider(AIProvider):
 
 
 class GeminiProvider(AIProvider):
-    """Google Gemini API を使う AIProvider 実装（モデル: gemini-3.1-pro-preview）。"""
+    """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.5-flash）。"""
 
     def __init__(self, api_key: str) -> None:
         from google import genai
+
         self.client = genai.Client(api_key=api_key)
 
     def complete(self, system: str, user: str) -> str:
@@ -147,8 +151,9 @@ class GeminiProvider(AIProvider):
             Gemini の応答テキスト。空のとき空文字を返す。
         """
         from google import genai  # noqa: F401 — keep import for type resolution
+
         response = self.client.models.generate_content(
-            model="gemini-3.1-pro-preview",
+            model="gemini-2.5-flash",
             contents=f"{system}\n\n{user}",
         )
         return response.text or ""
