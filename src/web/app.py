@@ -11,10 +11,9 @@ from typing import Any
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from src.config import load_config
+from src.config import load_config, get_artists_yaml_path
 from src.store.local_store import LocalStore
 from src.scrapers.generic import GenericScraper
-from src.notion.client import NotionClient
 from src.notifier.discord import DiscordNotifier
 from src.analyzer.site_analyzer import analyze_site, capture_page
 from src.analyzer.config_writer import write_site_config
@@ -66,7 +65,7 @@ class ArtistCreatePayload(BaseModel):
 
 async def create_artist_task(job_id: str, payload: ArtistCreatePayload):
     try:
-        config_path = Path(__file__).resolve().parent.parent.parent / "config" / "artists.yaml"
+        config_path = get_artists_yaml_path()
 
         # 1. Capture Page
         await job_manager.broadcast(job_id, {"status": "processing", "message": f"Capturing {payload.display_name}'s page..."})
@@ -114,8 +113,6 @@ async def create_artist_task(job_id: str, payload: ArtistCreatePayload):
                 events = await asyncio.to_thread(GenericScraper().scrape, artist_config)
                 store = LocalStore()
                 created, updated = await asyncio.to_thread(store.upsert_many_diff, events)
-                if config.env.notion_token and config.env.notion_database_id:
-                    await asyncio.to_thread(NotionClient().upsert_events, events)
                 notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
                 await asyncio.to_thread(lambda: notifier.notify_batch(created=created, updated=updated))
                 await job_manager.broadcast(job_id, {"status": "completed", "message": f"Added {payload.display_name}! Scraped {len(events)} events."})
@@ -130,7 +127,7 @@ async def create_artist_task(job_id: str, payload: ArtistCreatePayload):
 # --- End Job Management ---
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = BASE_DIR / "config" / "artists.yaml"
+CONFIG_PATH = get_artists_yaml_path()
 IMG_DIR = BASE_DIR / "frontend" / "public" / "img"
 
 app.add_middleware(

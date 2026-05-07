@@ -123,7 +123,7 @@ class DiscordNotifier:
 
         Args:
             event: 更新されたライブイベント。
-            diff: ``{field_name: new_value}`` の差分辞書（NotionClient.upsert_events の戻り値）。
+            diff: ``{field_name: new_value}`` の差分辞書（LocalStore.upsert_many_diff の戻り値）。
         """
         if self._skip_with_warning():
             return

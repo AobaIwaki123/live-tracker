@@ -9,10 +9,9 @@ import typer
 
 from src.analyzer.config_writer import write_site_config
 from src.analyzer.site_analyzer import analyze_site, capture_page
-from src.config import ArtistConfig, _PROJECT_ROOT, load_config
+from src.config import ArtistConfig, load_config, get_artists_yaml_path
 from src.enricher.enricher import Enricher
 from src.models.event import LiveEvent
-from src.notion.client import NotionClient
 from src.notifier.discord import DiscordNotifier
 from src.notifier.weekly_summary import WeeklySummaryNotifier
 from src.scrapers.generic import GenericScraper
@@ -60,7 +59,7 @@ def analyze(
     artist: str | None = typer.Option(None, "--artist", help="特定アーティストのみ解析"),
     force: bool = typer.Option(False, "--force", help="解析済みでも再解析する"),
 ) -> None:
-    """AI でサイト構造を解析し、config/artists.yaml を更新する。"""
+    """AI でサイト構造を解析し、data/artists.yaml を更新する。"""
     config = load_config()
     targets: list[ArtistConfig] = [
         a for a in config.artists if not artist or a.name == artist
@@ -70,7 +69,7 @@ def analyze(
         typer.echo(f"対象アーティストが見つかりません: {artist}", err=True)
         raise typer.Exit(code=1)
 
-    yaml_path = _PROJECT_ROOT / "config" / "artists.yaml"
+    yaml_path = get_artists_yaml_path()
 
     for artist_config in targets:
         if artist_config.analyzed_at and not force:
@@ -87,7 +86,7 @@ def analyze(
                 typer.echo(f"[{artist_config.name}] 解析に失敗しました。スキップします", err=True)
                 continue
             write_site_config(yaml_path, artist_config.name, site_config)
-            typer.echo(f"完了: config/artists.yaml を確認してください（{artist_config.name}）")
+            typer.echo(f"完了: data/artists.yaml を確認してください（{artist_config.name}）")
         except Exception as exc:  # noqa: BLE001
             logger.error("[%s] 解析中にエラーが発生しました: %s", artist_config.name, exc)
 
@@ -95,9 +94,9 @@ def analyze(
 @app.command()
 def scrape(
     artist: Optional[str] = typer.Option(None, "--artist", help="特定アーティストのみ処理"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Notion への書き込みを行わず確認のみ"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="DB への書き込みを行わず確認のみ"),
 ) -> None:
-    """スケジュールをスクレイピングして Notion DB へアップサートする。"""
+    """スケジュールをスクレイピングして SQLite へ保存し Discord に通知する。"""
     config = load_config()
     targets: list[ArtistConfig] = [
         a for a in config.artists if not artist or a.name == artist
@@ -120,11 +119,6 @@ def scrape(
 
             store = LocalStore()
             created, updated = store.upsert_many_diff(events)
-
-            if config.env.notion_token and config.env.notion_database_id:
-                NotionClient().upsert_events(events)
-            else:
-                logger.warning("NOTION_TOKEN / NOTION_DATABASE_ID 未設定のため Notion 書き込みをスキップします")
 
             notifier = DiscordNotifier(webhook_url=config.env.discord_webhook_url)
             notifier.notify_batch(created=created, updated=updated)

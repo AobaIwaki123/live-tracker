@@ -1,0 +1,202 @@
+artists:
+- name: avam
+  display_name: AVAM
+  theme_color: '#E91E8C'
+  image_url: https://picsum.photos/seed/avam/400/300
+  base_url: https://avam-fc.com/schedule
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: api_endpoint
+    endpoint: /api/schedule/get
+    method: POST
+    body_template:
+      start: '{month_start}'
+      end: '{month_end}'
+    range_months: 3
+  response:
+    format: json_array
+    array_path: ''
+    mapping:
+      id: id
+      title: title
+      date: reception_date
+      date_format: '%Y-%m-%d'
+  detail:
+    enabled: true
+    url_pattern: /schedule/detail/{id}?d={date}
+    selectors: {}
+- name: shallm
+  display_name: shallm
+  theme_color: '#7C3AED'
+  image_url: https://picsum.photos/seed/shallm/400/300
+  base_url: https://www.eventernote.com/actors/shallm/76150
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: single_page
+    range_months: 3
+  selectors:
+    event_list: li.clearfix
+    title: div.event h4 a
+    date: div.date p::regex(\d{4}-\d{2}-\d{2})
+    venue: div.place a
+    start_time: div.place span.s::regex(開演\s*(\d+:\d+))
+  detail:
+    enabled: false
+- name: jj
+  display_name: Juice=Juice
+  theme_color: '#F59E0B'
+  image_url: https://picsum.photos/seed/jj/400/300
+  base_url: https://helloproject.com/juicejuice/schedule/?filterType=member&viewType=member&selectedEventsTypes=CONCERT
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: api_endpoint
+    endpoint: /json/{version_dir}/{year}_schedules.json
+    method: GET
+    body_template: {}
+    range_months: 3
+    version_dir_regex: '&quot;versionDir&quot;:\[0,&quot;([^&]+)&quot;\]'
+    filter_artist_ids:
+    - 36
+    filter_category: CONCERT
+  response:
+    format: json_object_with_array
+    array_path: items
+    mapping:
+      id: link.link
+      title: title.content
+      date: date
+      date_format: '%Y-%m-%d'
+      venue: note.content
+      start_time: schedule.start
+      source_url: link.link
+      ticket_url: link.link
+  detail:
+    enabled: false
+- name: ilife
+  display_name: iLiFE!
+  theme_color: '#F97316'
+  image_url: https://picsum.photos/seed/ilife/400/300
+  base_url: https://timetreeapp.com/public_calendars/ilife_official
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: api_endpoint
+    endpoint: /api/v2/public_calendars/ilife_official/public_events?from={month_start_ms}&to={month_end_ms}&utc_offset=32400
+    method: GET
+    headers:
+      x-timetreea: web/2.1.0/en
+    range_months: 3
+  response:
+    format: json_object_with_array
+    array_path: public_events
+    mapping:
+      id: id
+      title: title
+      date: start_at
+      date_format: ''
+      venue: location_name
+      start_time: note::regex(開演時刻\s*(\d+:\d+))
+      ticket_url: link_url
+      source_url: url
+  detail:
+    enabled: false
+- name: candy-tune
+  display_name: CANDY TUNE
+  theme_color: '#EC4899'
+  image_url: https://picsum.photos/seed/candytune/400/300
+  base_url: https://candytune.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-05'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule > li > a.box
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)
+- name: dena
+  display_name: 横浜DeNAベイスターズ
+  theme_color: '#003F8E'
+  image_url: https://sp.baystars.co.jp/images/team/logo_primary.png
+  base_url: https://www.baystars.co.jp/game/schedule/2026
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: /game/schedule/{year}/{month:02d}
+    range_months: 3
+  selectors:
+    event_list: td.calendar--hasmatch
+    title: p.name
+    date: p.day
+    date_format: '%d'
+    venue: p.location::regex(^(.+?)(?=\d{1,2}:\d{2}))
+    ticket_url: p.button--ticket a::attr(href)
+  detail:
+    enabled: false
+- name: fz
+  display_name: FRUITS ZIPPER
+  theme_color: '#fa009e'
+  image_url: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQklCupeQr8U6qraSlQ_BJQQ5qpMyZ-143tQ4H4yLwMsjabIpjhY09BPVGb7Xd2E6zl76oEI79geLC7l7kayzBbEUzrDtt0oI9y-j6L5g&s=10
+  base_url: https://fruitszipper.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: li.sys-schedule a.box_live_2
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+  detail:
+    enabled: false
+- name: ss
+  display_name: SWEET STEADY
+  theme_color: '#5a1fff'
+  image_url: https://realsound.jp/wp-content/uploads/2024/12/20241223-sweetsteady-99.jpg
+  base_url: https://sweetsteady.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule > li > a.box
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)

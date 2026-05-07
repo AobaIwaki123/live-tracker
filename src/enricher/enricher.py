@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date
 from typing import Any
 from urllib.parse import quote_plus
 
 from src.ai.provider import AIProvider, get_ai_provider
 from src.models.event import LiveEvent
-from src.notion.client import NotionClient, NotionRecord
+from src.store.local_store import LocalStore
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,6 @@ def _is_relevant(extracted: dict[str, Any], event: LiveEvent) -> bool:
     """Return False when the AI result has no plausible connection to the event."""
     if not extracted:
         return False
-    # 少なくとも 1 フィールドが非空であることを確認
     return any(v for v in extracted.values() if v)
 
 
@@ -73,45 +71,21 @@ def _compute_diff(event: LiveEvent, enriched: dict[str, Any]) -> dict[str, Any]:
     return diff
 
 
-def _record_to_event(record: NotionRecord) -> LiveEvent:
-    fields = record.fields
-    raw_date = fields.get("date")
-    parsed_date: date | None = raw_date if isinstance(raw_date, date) else None
-    return LiveEvent(
-        title=fields.get("title", ""),
-        artist=fields.get("artist", ""),
-        date=parsed_date,
-        start_time=fields.get("start_time", ""),
-        venue=fields.get("venue", ""),
-        prefecture=fields.get("prefecture", ""),
-        ticket_url=fields.get("ticket_url", ""),
-        ticket_price=fields.get("ticket_price", ""),
-        other_artists=fields.get("other_artists", ""),
-        poster_url=fields.get("poster_url", ""),
-        source_url=fields.get("source_url", ""),
-    )
-
-
 class Enricher:
-    """Notion DB の欠損フィールドを AI で補完するエンリッチャー。
+    """ローカル SQLite の欠損フィールドを AI で補完するエンリッチャー。
 
-    ``取得ステータス`` が ``詳細取得済み`` 以外のレコードを対象に、
+    ``fetch_status`` が ``詳細取得済み`` 以外のレコードを対象に、
     チケットサイトの Google 検索結果 HTML を AI に渡してフィールドを抽出し、
-    Notion の空欄フィールドのみを上書き更新する（FR-06）。
+    空欄フィールドのみを上書き更新する（FR-06）。
 
     Raises:
-        EnvironmentError: NotionClient または AIProvider の初期化に失敗した場合。
+        EnvironmentError: AIProvider の初期化に失敗した場合。
     """
 
     def __init__(
         self,
-        notion_client: NotionClient | None = None,
         ai_provider: AIProvider | None = None,
     ) -> None:
-        try:
-            self._notion = notion_client or NotionClient()
-        except Exception as exc:
-            raise EnvironmentError(f"NotionClient の初期化に失敗しました: {exc}") from exc
         try:
             self._ai = ai_provider or get_ai_provider()
         except Exception as exc:
@@ -168,7 +142,7 @@ class Enricher:
         self,
         records: list[LiveEvent],
     ) -> list[tuple[LiveEvent, dict]]:
-        """全対象レコードを enrich して Notion 更新し、更新リストを返す。
+        """全対象レコードを enrich して更新リストを返す。
 
         Args:
             records: 補完対象のライブイベントリスト。
@@ -191,30 +165,28 @@ class Enricher:
         return results
 
     def run(self, artist_filter: str | None = None) -> None:
-        """Notion DB から補完対象レコードを取得してエンリッチメントを実行する。
+        """ローカル DB から補完対象レコードを取得してエンリッチメントを実行する。
 
         Args:
             artist_filter: 指定したアーティスト名のみを処理する。None のとき全件対象。
         """
         logger.info("エンリッチメント開始 (artist=%s)", artist_filter or "全件")
-        all_records = self._notion.fetch_all()
+        store = LocalStore()
+        all_events = store.get_all()
 
         targets = [
-            (key, record)
-            for key, record in all_records.items()
-            if record.fields.get("fetch_status") != "詳細取得済み"
-            and (artist_filter is None or record.fields.get("artist") == artist_filter)
+            e for e in all_events
+            if e.fetch_status != "詳細取得済み"
+            and (artist_filter is None or e.artist == artist_filter)
         ]
         logger.info("補完対象: %d 件", len(targets))
 
         updated_count = 0
-        for _key, record in targets:
-            event = _record_to_event(record)
+        for event in targets:
             diff = self.enrich(event)
             if not diff:
                 continue
 
-            # fetch_status を補完後の値で再計算
             patched = LiveEvent(
                 title=event.title,
                 artist=event.artist,
@@ -228,9 +200,8 @@ class Enricher:
                 poster_url=event.poster_url,
                 source_url=event.source_url,
             )
-            diff["fetch_status"] = patched.fetch_status
 
-            self._notion.update(record.page_id, diff)
+            store.upsert(patched)
             updated_count += 1
             logger.info(
                 "更新完了: artist=%s, title=%s → %s",

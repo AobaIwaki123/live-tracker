@@ -10,6 +10,21 @@ import yaml
 from dotenv import load_dotenv
 
 _PROJECT_ROOT = Path(__file__).parent.parent
+_BUNDLED_YAML = _PROJECT_ROOT / "config" / "artists.yaml"
+_DATA_YAML = _PROJECT_ROOT / "data" / "artists.yaml"
+
+
+def get_artists_yaml_path() -> Path:
+    """PVC 上の artists.yaml パスを返す。存在しなければイメージ内の bundled 版をコピーして初期化する。
+
+    Returns:
+        書き込み可能な artists.yaml のパス（data/artists.yaml）。
+    """
+    if not _DATA_YAML.exists():
+        import shutil
+        _DATA_YAML.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_BUNDLED_YAML, _DATA_YAML)
+    return _DATA_YAML
 
 
 @dataclass
@@ -129,16 +144,12 @@ class EnvConfig:
     """環境変数から読み込む認証情報・設定値。
 
     Attributes:
-        notion_token: Notion Integration Token。
-        notion_database_id: 書き込み先 Notion データベース ID。
         anthropic_api_key: Claude API キー。
         gemini_api_key: Gemini API キー。
         discord_webhook_url: Discord Webhook URL。未設定時は通知をスキップ。
         ai_provider: AI プロバイダー選択。auto / claude / gemini。
     """
 
-    notion_token: str
-    notion_database_id: str
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
     discord_webhook_url: str = ""
@@ -217,15 +228,13 @@ def load_config(
     """
     load_dotenv(env_path or _PROJECT_ROOT / ".env")
 
-    yaml_file = yaml_path or _PROJECT_ROOT / "config" / "artists.yaml"
+    yaml_file = yaml_path or get_artists_yaml_path()
     with yaml_file.open(encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     artists = [_parse_artist(a) for a in (data.get("artists") or [])]
 
     env = EnvConfig(
-        notion_token=os.environ.get("NOTION_TOKEN", ""),
-        notion_database_id=os.environ.get("NOTION_DATABASE_ID", ""),
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
         discord_webhook_url=os.environ.get("DISCORD_WEBHOOK_URL", ""),

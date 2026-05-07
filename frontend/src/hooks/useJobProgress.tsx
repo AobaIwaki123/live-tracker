@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 export type JobStatus = "pending" | "processing" | "completed" | "error";
@@ -12,6 +12,8 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
   const [status, setStatus] = useState<JobStatus>("pending");
   const [message, setMessage] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
 
   useEffect(() => {
     if (!jobId) {
@@ -38,7 +40,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
           clearInterval(pollInterval);
           setTimeout(() => {
             setIsOpen(false);
-            if (onComplete) onComplete();
+            if (onCompleteRef.current) onCompleteRef.current();
             window.location.reload();
           }, 2000);
         } else if (data.status === "error") {
@@ -58,7 +60,7 @@ export function useJobProgress(jobId: string | null, onComplete?: () => void) {
     return () => {
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [jobId, onComplete]);
+  }, [jobId]);
 
   return { status, message, isOpen, setIsOpen };
 }
