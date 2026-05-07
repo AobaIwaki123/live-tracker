@@ -14,11 +14,23 @@ logger = logging.getLogger(__name__)
 # スケジュール関連 URL のキーワード（XHR/Fetch ログのフィルタ条件）
 _SCHEDULE_KEYWORDS = re.compile(r"schedule|event|live|api", re.IGNORECASE)
 
+# イベント要素スニペット抽出用キーワード（クラス名マッチ）
+_EVENT_SNIPPET_PATTERN = re.compile(
+    r"schedule|event|live|match|game|calendar|concert|ticket",
+    re.IGNORECASE,
+)
+
 # 除外する静的リソースの拡張子
 _STATIC_EXTENSIONS = re.compile(
     r"\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|eot|map)(\?.*)?$",
     re.IGNORECASE,
 )
+
+# analyze_site() でのフォローアップターン上限（Turn 1 を含まない）
+_MAX_FOLLOWUP_TURNS = 2
+
+# analyze_site() でのバリデーションターン上限
+_MAX_VALIDATION_TURNS = 2
 
 ANALYSIS_SYSTEM_PROMPT = """
 あなたは Web スクレイピング設定を生成する専門家です。
@@ -36,7 +48,7 @@ api_endpoint > query_param > path_segment > pagination_links > single_page
 2. **特殊なセレクタ記法**:
    `selectors` や `response.mapping` の値では以下の記法が使用可能です。
    - `::attr(name)`: 属性値を取得（例: `a::attr(href)`）
-   - `::regex(pattern)`: 正規表現で抽出。グループ1を優先（例: `p::regex(開演\s*(\d+:\d+))`）
+   - `::regex(pattern)`: 正規表現で抽出。グループ1を優先（例: `p::regex(開演\\s*(\\d+:\\d+))`）
 3. **APIレスポンスのネスト**:
    `response.mapping` ではドット記法（例: `schedule.start`）を使用してネストしたフィールドを取得できます。
 4. **日付形式 (date_format)**:
@@ -102,7 +114,7 @@ HTMLに `&quot;versionDir&quot;:&quot;260505...-AbCd...&quot;` が含まれる�
     "enabled": true,
     "url_pattern": "{base_url_origin}/event/{id}",
     "selectors": {
-      "venue": ".venue::regex(会場[:：]\s*(.+))",
+      "venue": ".venue::regex(会場[:：]\\s*(.+))",
       "ticket_url": "a.ticket-link::attr(href)"
     }
   }
@@ -152,6 +164,8 @@ _OUTPUT_SCHEMA = """\
     "event_list": string,
     "title": string,
     "date": string,
+    "date_format": string,  // 必須。日付文字列のフォーマット。例: "%Y-%m-%d" / "%d" / "%Y/%m/%d"
+                            // YYYY-MM-DD など標準フォーマットなら "" (空文字)
     "venue": string,
     "ticket_url": string
   },
@@ -269,18 +283,24 @@ def capture_page(base_url: str) -> tuple[str, list[NetworkLog]]:
 
         browser.close()
 
-    return html[:20000], logs
+    return html, logs
 
 
 def analyze_site(base_url: str, html: str, network_logs: list[NetworkLog]) -> SiteConfig | None:
     """AI Provider に解析を依頼し SiteConfig を返す。
 
+    3 フェーズのループで精度を高める:
+
+    Phase 1 — Turn 1: HTML + ネットワークログ + スニペットから初期設定を生成。
+    Phase 2 — 完全性チェック: 必須フィールドが欠けていれば補完ターンを繰り返す（最大 _MAX_FOLLOWUP_TURNS 回）。
+    Phase 3 — バリデーション: 実際の URL をフェッチしてイベント 0 件なら AI に
+              ターゲット URL のスニペットを渡して再修正（最大 _MAX_VALIDATION_TURNS 回）。
+
     Claude / Gemini どちらを使うかは get_ai_provider() が決定する。
-    解析失敗時（API エラー・JSON パース失敗・スキーマ違反）はログを出して None を返す。
 
     Args:
         base_url: 解析対象サイトの URL。
-        html: ページ HTML（先頭 20,000 字）。
+        html: capture_page() で取得したフル HTML。
         network_logs: capture_page() で取得したネットワークログ。
 
     Returns:
@@ -288,12 +308,375 @@ def analyze_site(base_url: str, html: str, network_logs: list[NetworkLog]) -> Si
     """
     try:
         ai = get_ai_provider()
+        session = ai.chat_session(ANALYSIS_SYSTEM_PROMPT)
+
+        # Phase 1: Turn 1 — HTML + ネットワークログ全体を渡して初期設定を取得
         prompt = _build_prompt(base_url, html, network_logs)
-        raw_json = ai.complete(system=ANALYSIS_SYSTEM_PROMPT, user=prompt)
-        return _parse_site_config(raw_json)
+        raw_json = session.send(prompt)
+        site_config = _parse_site_config(raw_json)
+        logger.info("ターン 1 完了: %s", site_config.navigation.get("type"))
+
+        # Phase 2: 不足フィールドを補完するまでループ
+        for turn in range(2, _MAX_FOLLOWUP_TURNS + 2):
+            missing = _check_completeness(site_config)
+            if not missing:
+                logger.info("完全性チェック OK（%d ターン）", turn - 1)
+                break
+            logger.info("ターン %d: 不完全なフィールド: %s", turn, missing)
+            follow_up = _build_followup_prompt(missing, site_config)
+            raw_json = session.send(follow_up)
+            updated = _parse_site_config(raw_json)
+            site_config = _merge_configs(site_config, updated)
+        else:
+            remaining = _check_completeness(site_config)
+            if remaining:
+                logger.warning("完全性チェック: 未解決フィールド: %s", remaining)
+
+        # Phase 3: 実スクレイプで 0 件なら AI にフィードバックして再修正
+        for vturn in range(1, _MAX_VALIDATION_TURNS + 1):
+            count, val_snippets = _validate_config(site_config, base_url)
+            if count < 0:
+                logger.info("バリデーションスキップ（%s）", site_config.navigation.get("type"))
+                break
+            if count > 0:
+                logger.info("バリデーション成功: %d 件取得（バリデーションターン %d）", count, vturn)
+                break
+            logger.info("バリデーションターン %d: 0 件 — AI に実ページ HTML をフィードバック", vturn)
+            feedback = _build_validation_feedback(site_config, base_url, val_snippets)
+            raw_json = session.send(feedback)
+            updated = _parse_site_config(raw_json)
+            site_config = _merge_configs(site_config, updated)
+        else:
+            count, _ = _validate_config(site_config, base_url)
+            if count == 0:
+                logger.warning("バリデーション: 最大ターン数に達しました。0 件のまま確定")
+
+        return site_config
     except Exception as exc:
         logger.error("サイト解析に失敗しました（%s）: %s", base_url, exc)
         return None
+
+
+def _build_validation_url(site_config: SiteConfig, base_url: str) -> str | None:
+    """バリデーション用の最初の URL を構築する。
+
+    api_endpoint タイプは検証が複雑なためスキップ（None を返す）。
+
+    Args:
+        site_config: 検証対象の SiteConfig。
+        base_url: アーティストの base_url。
+
+    Returns:
+        フェッチ対象 URL。スキップ対象のときは None。
+    """
+    import datetime
+    from urllib.parse import urlparse
+
+    nav = site_config.navigation
+    nav_type = nav.get("type")
+
+    if nav_type == "api_endpoint":
+        return None
+
+    parsed = urlparse(base_url)
+    base_url_origin = f"{parsed.scheme}://{parsed.netloc}"
+    today = datetime.date.today()
+
+    if nav_type in ("single_page", "pagination_links"):
+        return base_url
+
+    if nav_type == "path_segment":
+        pattern = nav.get("pattern", "")
+        url = pattern.format(
+            base_url=base_url,
+            base_url_origin=base_url_origin,
+            year=today.year,
+            month=today.month,
+        )
+        if not url.startswith("http"):
+            url = f"{base_url_origin}{url}"
+        return url
+
+    if nav_type == "query_param":
+        param = nav.get("param", "")
+        value_format = nav.get("value_format", "%Y-%m")
+        return f"{base_url}?{param}={today.strftime(value_format)}"
+
+    return None
+
+
+def _validate_config(site_config: SiteConfig, base_url: str) -> tuple[int, str]:
+    """実際に 1 URL をフェッチして event_list セレクタで取れる要素数を確認する。
+
+    Args:
+        site_config: 検証対象の SiteConfig。
+        base_url: アーティストの base_url（URL 構築に使用）。
+
+    Returns:
+        (element_count, snippets):
+        element_count が -1 のときは検証スキップ。
+        snippets は 0 件のとき AI へのフィードバック用スニペット。
+    """
+    url = _build_validation_url(site_config, base_url)
+    if url is None:
+        return -1, ""
+
+    event_list_selector = site_config.selectors.get("event_list", "")
+    if not event_list_selector:
+        return -1, ""
+
+    try:
+        dynamic = site_config.fetch.get("dynamic", False)
+        if dynamic:
+            from scrapling.fetchers import DynamicFetcher
+            page = DynamicFetcher().fetch(url, timeout=30000)
+        else:
+            from scrapling.fetchers import Fetcher
+            page = Fetcher().get(url, timeout=30)
+
+        if page is None:
+            return -1, ""
+
+        elements = page.css(event_list_selector)
+        count = len(elements)
+
+        page_html = page.html if hasattr(page, "html") else ""
+        snippets = _extract_event_snippets(page_html) if count == 0 else ""
+        return count, snippets
+
+    except Exception as exc:
+        logger.warning("バリデーションフェッチ失敗 (%s): %s", url, exc)
+        return -1, ""
+
+
+def _build_validation_feedback(
+    site_config: SiteConfig, base_url: str, val_snippets: str
+) -> str:
+    """バリデーション 0 件時の AI フィードバックプロンプトを構築する。
+
+    Args:
+        site_config: 現在の SiteConfig。
+        base_url: アーティストの base_url。
+        val_snippets: バリデーション URL から抽出したスニペット。
+
+    Returns:
+        フィードバックプロンプト文字列。
+    """
+    url = _build_validation_url(site_config, base_url) or base_url
+    current_json = json.dumps(
+        {
+            "fetch": site_config.fetch,
+            "navigation": site_config.navigation,
+            "response": site_config.response,
+            "selectors": site_config.selectors,
+            "detail": site_config.detail,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    return f"""\
+現在の設定で実際にスクレイプしたところ、イベントが 0 件でした。
+
+対象 URL: {url}
+使用した event_list セレクタ: {site_config.selectors.get('event_list', '（未設定）')}
+
+現在の設定:
+```json
+{current_json}
+```
+
+対象 URL のページから抽出した実要素スニペット（この HTML を元にセレクタを修正してください）:
+{val_snippets}
+
+0 件になった原因（セレクタの不一致 / navigation.pattern の誤り など）を特定し、
+修正した完全な JSON を出力してください。JSON のみを出力してください。
+"""
+
+
+def _check_completeness(config: SiteConfig) -> list[str]:
+    """SiteConfig の必須フィールドを検査し、不足しているフィールドパスを返す。
+
+    Args:
+        config: 検査対象の SiteConfig。
+
+    Returns:
+        不足フィールドのパス一覧。空リストなら完全。
+    """
+    missing: list[str] = []
+    nav_type = config.navigation.get("type")
+
+    if not nav_type:
+        missing.append("navigation.type")
+        return missing
+
+    if nav_type == "api_endpoint":
+        if not config.navigation.get("endpoint"):
+            missing.append("navigation.endpoint")
+        if not config.navigation.get("method"):
+            missing.append("navigation.method")
+        mapping = config.response.get("mapping", {})
+        if not mapping.get("title"):
+            missing.append("response.mapping.title")
+        if not mapping.get("date"):
+            missing.append("response.mapping.date")
+        if "date_format" not in mapping:
+            missing.append("response.mapping.date_format")
+
+    elif nav_type == "query_param":
+        if not config.navigation.get("param"):
+            missing.append("navigation.param")
+        if not config.navigation.get("value_format"):
+            missing.append("navigation.value_format")
+        if not config.selectors.get("event_list"):
+            missing.append("selectors.event_list")
+        if not config.selectors.get("title"):
+            missing.append("selectors.title")
+        if not config.selectors.get("date"):
+            missing.append("selectors.date")
+        if "date_format" not in config.selectors:
+            missing.append("selectors.date_format")
+
+    elif nav_type == "path_segment":
+        if not config.navigation.get("pattern"):
+            missing.append("navigation.pattern")
+        if not config.selectors.get("event_list"):
+            missing.append("selectors.event_list")
+        if not config.selectors.get("title"):
+            missing.append("selectors.title")
+        if not config.selectors.get("date"):
+            missing.append("selectors.date")
+        if "date_format" not in config.selectors:
+            missing.append("selectors.date_format")
+
+    else:  # single_page / pagination_links
+        if not config.selectors.get("event_list"):
+            missing.append("selectors.event_list")
+        if not config.selectors.get("title"):
+            missing.append("selectors.title")
+        if not config.selectors.get("date"):
+            missing.append("selectors.date")
+        if "date_format" not in config.selectors:
+            missing.append("selectors.date_format")
+
+    if not config.navigation.get("range_months"):
+        missing.append("navigation.range_months")
+
+    return missing
+
+
+def _merge_configs(original: SiteConfig, updated: SiteConfig) -> SiteConfig:
+    """original に updated の非空フィールドをマージして返す。
+
+    updated の各フィールドが空でなければ original を上書きする。
+    dict 値はキーレベルでマージし、updated の非空値が優先される。
+
+    Args:
+        original: ベースとなる SiteConfig。
+        updated: フォローアップターンで得た SiteConfig。
+
+    Returns:
+        マージ結果の新しい SiteConfig。
+    """
+    def _merge_dict(orig: dict, upd: dict) -> dict:
+        if not upd:
+            return orig
+        if not orig:
+            return upd
+        merged = dict(orig)
+        for k, v in upd.items():
+            if v is not None:  # None のみ「未設定」として扱い、""・0・False は有効値として保持
+                merged[k] = v
+        return merged
+
+    return SiteConfig(
+        fetch=_merge_dict(original.fetch, updated.fetch),
+        navigation=_merge_dict(original.navigation, updated.navigation),
+        response=_merge_dict(original.response, updated.response),
+        selectors=_merge_dict(original.selectors, updated.selectors),
+        detail=_merge_dict(original.detail, updated.detail),
+    )
+
+
+def _build_followup_prompt(missing: list[str], current: SiteConfig) -> str:
+    """不足フィールドを補完するためのフォローアッププロンプトを構築する。
+
+    Args:
+        missing: _check_completeness() が返した不足フィールドパス一覧。
+        current: 現時点の SiteConfig（AI への参考情報として渡す）。
+
+    Returns:
+        フォローアップターン用のプロンプト文字列。
+    """
+    current_json = json.dumps(
+        {
+            "fetch": current.fetch,
+            "navigation": current.navigation,
+            "response": current.response,
+            "selectors": current.selectors,
+            "detail": current.detail,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    missing_list = "\n".join(f"- {f}" for f in missing)
+
+    return f"""\
+以下のフィールドが不完全または未設定です:
+{missing_list}
+
+現在の設定（参考）:
+```json
+{current_json}
+```
+
+HTML とネットワークログを再確認し、不足フィールドをすべて補完した完全な JSON を出力してください。
+JSON のみを出力し、説明文やコードブロック記法（```json など）は含めないこと。
+"""
+
+
+def _extract_event_snippets(html: str) -> str:
+    """HTML からイベント関連要素のスニペットを抽出する。
+
+    クラス名に _EVENT_SNIPPET_PATTERN のキーワードを含む要素を探し、
+    出現回数が多い順（繰り返しリストアイテム優先）に最大 5 タイプを抽出する。
+    body/html/head および outerHTML が 3,000 字超の大型コンテナは除外する。
+
+    Args:
+        html: ページ HTML 文字列（フル HTML を想定）。
+
+    Returns:
+        抽出したスニペットの文字列。要素が見つからない場合は説明文を返す。
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # (tag_name, frozenset(classes)) -> [element, ...]
+    grouped: dict[tuple, list] = {}
+    for tag in soup.find_all(class_=_EVENT_SNIPPET_PATTERN):
+        if tag.name in ("body", "html", "head"):
+            continue
+        # outerHTML が大きすぎる要素はコンテナと判断して除外
+        if len(str(tag)) > 3000:
+            continue
+        key = (tag.name, frozenset(tag.get("class", [])))
+        grouped.setdefault(key, []).append(tag)
+
+    if not grouped:
+        return "（イベント関連クラスの要素が見つかりませんでした）"
+
+    # 出現回数が多い順（繰り返し要素 = リストアイテム候補）
+    sorted_groups = sorted(grouped.items(), key=lambda x: len(x[1]), reverse=True)
+
+    parts: list[str] = []
+    for (tag_name, classes), elements in sorted_groups[:5]:
+        class_str = ".".join(sorted(classes))
+        for elem in elements[:2]:
+            outer = str(elem)[:1500]
+            parts.append(f"<!-- {tag_name}.{class_str} ({len(elements)}件) -->\n{outer}")
+
+    return "\n\n".join(parts)
 
 
 def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> str:
@@ -308,6 +691,9 @@ def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> s
         AI へ渡すプロンプト文字列。
     """
     logs_text = _format_network_logs(network_logs)
+    # スニペットはフル HTML から抽出し、AI に渡す HTML 本文は 20,000 字に制限する
+    snippets_text = _extract_event_snippets(html)
+    html_for_prompt = html[:20000]
 
     return f"""\
 ## 解析対象 URL
@@ -315,11 +701,18 @@ def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> s
 
 ## ページ HTML（先頭 20,000 字）
 ```html
-{html}
+{html_for_prompt}
 ```
 
 ## キャプチャした XHR/Fetch リクエスト一覧
 {logs_text}
+
+## イベント要素スニペット（クラス名にスケジュール関連キーワードを含む実要素）
+以下は実際のページから抽出した HTML 断片です。
+`selectors` の値はこのスニペットに存在するタグ・クラス名のみを使って導出してください。
+存在しないクラス名やタグ名を推測で使わないこと。
+
+{snippets_text}
 
 {_FEW_SHOT_EXAMPLE}
 

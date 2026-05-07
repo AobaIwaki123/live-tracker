@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
-import { Music, ArrowLeft } from "lucide-react";
+import { Music, ArrowLeft, Settings } from "lucide-react";
 
 export default function Navbar() {
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const isSettings = location.pathname === "/settings";
 
   return (
     <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/60 border-b border-purple-100/80 shadow-[0_1px_20px_rgba(147,112,219,0.08)]">
@@ -21,7 +22,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {!isHome && (
               <Link
                 to="/"
@@ -31,6 +32,18 @@ export default function Navbar() {
                 <span className="hidden sm:inline">アーティスト一覧</span>
               </Link>
             )}
+            
+            <Link
+              to="/settings"
+              className={`flex items-center gap-2.5 rounded-2xl px-4 py-2.5 text-base font-black transition-all active:scale-95 shadow-sm border ${
+                isSettings 
+                  ? "bg-violet-600 text-white border-violet-700 shadow-violet-200" 
+                  : "bg-white text-secondary-foreground hover:bg-violet-50 border-border"
+              }`}
+            >
+              <Settings className={`h-5 w-5 shrink-0 ${isSettings ? "animate-spin-slow" : ""}`} />
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
           </div>
         </div>
       </div>

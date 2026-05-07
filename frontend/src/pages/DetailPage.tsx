@@ -1,14 +1,16 @@
 import { useMemo, useLayoutEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Music2, X } from "lucide-react";
+import { ArrowLeft, Calendar, Music2, X, Settings } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvents } from "@/hooks/useEvents";
 import { useArtists } from "@/hooks/useArtists";
 import { applyArtistTheme, clearArtistTheme } from "@/lib/theme";
 import { getCountdown } from "@/lib/countdown";
+import { useJobProgress, JobProgressDialog } from "@/hooks/useJobProgress";
 import EventListItem from "@/components/events/EventListItem";
 import MonthSection from "@/components/events/MonthSection";
 import PastEventsCollapse from "@/components/events/PastEventsCollapse";
+import ArtistEditForm from "@/components/artists/ArtistEditForm";
 import type { LiveEvent } from "@/hooks/useEvents";
 
 const MONTH_LABELS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
@@ -33,11 +35,20 @@ function monthLabel(key: string): string {
 
 export default function DetailPage() {
   const { artistId } = useParams<{ artistId: string }>();
-  const { data: artists } = useArtists();
-  const { data: events, isLoading, error } = useEvents(artistId ?? "");
+  const { data: artists, mutate: mutateArtists } = useArtists();
+  const { data: events, isLoading, error, mutate: mutateEvents } = useEvents(artistId ?? "");
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const artist = artists?.find((a) => a.name === artistId);
+
+  const { status, message, isOpen: isJobProgressOpen } = useJobProgress(activeJobId, () => {
+    setActiveJobId(null);
+    setIsEditOpen(false);
+    mutateArtists();
+    mutateEvents();
+  });
 
   useLayoutEffect(() => {
     if (artist?.theme_color) applyArtistTheme(artist.theme_color);
@@ -61,6 +72,20 @@ export default function DetailPage() {
 
   const nextEvent = upcoming.find((e) => e.date);
   const nextCountdown = nextEvent ? getCountdown(nextEvent.date) : null;
+
+  const handleSave = async (data: any) => {
+    try {
+      const response = await fetch(`/api/artists/${artistId}/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      setActiveJobId(result.job_id);
+    } catch (err) {
+      console.error("Failed to update artist:", err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -100,16 +125,25 @@ export default function DetailPage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       {/* Banner */}
       <div
-        onClick={() => setIsImageOpen(true)}
-        className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-muted mb-8 shadow-2xl shadow-primary/10 cursor-zoom-in transition-all duration-500 hover:shadow-primary/20"
+        className="group relative aspect-[21/9] sm:aspect-[21/7] overflow-hidden rounded-[2.5rem] bg-muted mb-8 shadow-2xl shadow-primary/10 transition-all duration-500 hover:shadow-primary/20"
       >
         <img
           src={artist.image_url}
           alt={artist.display_name}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          onClick={() => setIsImageOpen(true)}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 cursor-zoom-in"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent transition-opacity group-hover:opacity-90" />
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 xl:p-10">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent transition-opacity group-hover:opacity-90 pointer-events-none" />
+        
+        {/* Edit Button */}
+        <button
+          onClick={() => setIsEditOpen(true)}
+          className="absolute top-6 right-6 p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/20 active:scale-95"
+        >
+          <Settings className="h-6 w-6" />
+        </button>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 xl:p-10 pointer-events-none">
           <div className="flex flex-row items-end justify-between gap-3">
             <div className="space-y-1 sm:space-y-2 min-w-0">
               <div
@@ -161,6 +195,18 @@ export default function DetailPage() {
           />
         </div>
       )}
+
+      {/* Edit Form */}
+      {isEditOpen && artist && (
+        <ArtistEditForm 
+          artist={artist as any} 
+          onSave={handleSave} 
+          onCancel={() => setIsEditOpen(false)} 
+        />
+      )}
+
+      {/* Progress Dialog */}
+      <JobProgressDialog isOpen={isJobProgressOpen} status={status} message={message} />
 
       {/* Event list */}
       {events && events.length > 0 ? (

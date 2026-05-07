@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Navbar from "@/components/layout/Navbar";
 import HomePage from "@/pages/HomePage";
 import DetailPage from "@/pages/DetailPage";
+import SettingsPage from "@/pages/SettingsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/artist/:artistId" element={<DetailPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </div>
           </main>

@@ -3,10 +3,67 @@ import os
 from abc import ABC, abstractmethod
 
 
+class ChatSession(ABC):
+    """マルチターン会話セッションの抽象クラス。
+
+    ``send`` を繰り返し呼ぶことで会話履歴が蓄積され、
+    前のターンの文脈を保持したまま追加の質問ができる。
+    """
+
+    @abstractmethod
+    def send(self, user: str) -> str:
+        """ユーザーメッセージを送信し、モデルの応答テキストを返す。
+
+        Args:
+            user: ユーザーメッセージ。
+
+        Returns:
+            モデルの応答テキスト。
+        """
+
+
+class _ClaudeChatSession(ChatSession):
+    """Claude Messages API を使うチャットセッション。"""
+
+    def __init__(self, client, model: str, system: str) -> None:
+        self._client = client
+        self._model = model
+        self._system = system
+        self._messages: list[dict] = []
+
+    def send(self, user: str) -> str:
+        self._messages.append({"role": "user", "content": user})
+        msg = self._client.messages.create(
+            model=self._model,
+            max_tokens=4096,
+            system=self._system,
+            messages=self._messages,
+        )
+        reply = msg.content[0].text or ""
+        self._messages.append({"role": "assistant", "content": reply})
+        return reply
+
+
+class _GeminiChatSession(ChatSession):
+    """Gemini chats API を使うチャットセッション。"""
+
+    def __init__(self, client, system: str) -> None:
+        from google.genai import types
+        self._chat = client.chats.create(
+            model="gemini-2.5-flash",
+            config=types.GenerateContentConfig(system_instruction=system),
+        )
+
+    def send(self, user: str) -> str:
+        response = self._chat.send_message(user)
+        return response.text or ""
+
+
 class AIProvider(ABC):
     """AI プロバイダーの抽象基底クラス。
 
-    ``complete`` の 1 メソッドのみを定義し、Claude / Gemini の差異を隠蔽する。
+    ``complete`` (1ショット) と ``chat_session`` (マルチターン) の
+    2 メソッドを定義し、Claude / Gemini の差異を隠蔽する。
     """
 
     @abstractmethod
@@ -19,6 +76,18 @@ class AIProvider(ABC):
 
         Returns:
             モデルの応答テキスト。
+        """
+
+    @abstractmethod
+    def chat_session(self, system: str) -> ChatSession:
+        """マルチターン会話セッションを開始する。
+
+        Args:
+            system: セッション全体に適用するシステムプロンプト。
+
+        Returns:
+            ChatSession インスタンス。send() を繰り返し呼ぶことで
+            会話履歴を維持したまま対話できる。
         """
 
 
@@ -48,6 +117,17 @@ class ClaudeProvider(AIProvider):
         )
         return msg.content[0].text or ""
 
+    def chat_session(self, system: str) -> ChatSession:
+        """Claude マルチターンセッションを返す。
+
+        Args:
+            system: セッション全体のシステムプロンプト。
+
+        Returns:
+            _ClaudeChatSession インスタンス。
+        """
+        return _ClaudeChatSession(self.client, self.model, system)
+
 
 class GeminiProvider(AIProvider):
     """Google Gemini API を使う AIProvider 実装（モデル: gemini-2.5-flash）。"""
@@ -72,6 +152,17 @@ class GeminiProvider(AIProvider):
             contents=f"{system}\n\n{user}",
         )
         return response.text or ""
+
+    def chat_session(self, system: str) -> ChatSession:
+        """Gemini マルチターンセッションを返す。
+
+        Args:
+            system: セッション全体のシステムプロンプト。
+
+        Returns:
+            _GeminiChatSession インスタンス。
+        """
+        return _GeminiChatSession(self.client, system)
 
 
 def get_ai_provider() -> AIProvider:

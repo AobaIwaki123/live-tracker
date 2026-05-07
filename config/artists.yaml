@@ -140,7 +140,7 @@ artists:
   base_url: https://www.baystars.co.jp/game/schedule/2026
   display_name: 横浜DeNAベイスターズ
   theme_color: '#003F8E'
-  analyzed_at: '2026-05-06'
+  analyzed_at: '2026-05-07'
   fetch:
     dynamic: false
   navigation:
@@ -149,11 +149,10 @@ artists:
     range_months: 12
   selectors:
     event_list: td.calendar--hasmatch
-    title: p.name span:last-child
-    date: p.day::regex(\d+)
+    title: p.name
+    date: p.day
     date_format: '%d'
-    venue: p.location::regex(^([^\d]+))
-    start_time: p.location::regex((\d+:\d+))
-    ticket_url: .button--ticket a::attr(href)
+    venue: p.location::regex((.+?)\d{1,2}:\d{2})
+    ticket_url: p.button--ticket a::attr(href)
   detail:
     enabled: false

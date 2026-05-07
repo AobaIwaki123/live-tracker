@@ -131,18 +131,18 @@ def generate_targets(config: ArtistConfig) -> list[ScrapeTarget]:
             ]
 
         case "path_segment":
-            return [
-                ScrapeTarget(
-                    url=nav.pattern.format(
-                        base_url=config.base_url,
-                        base_url_origin=config.base_url_origin,
-                        year=m.year,
-                        month=m.month,
-                    ),
-                    metadata={"date": m},
+            targets = []
+            for m in months:
+                url = nav.pattern.format(
+                    base_url=config.base_url,
+                    base_url_origin=config.base_url_origin,
+                    year=m.year,
+                    month=m.month,
                 )
-                for m in months
-            ]
+                if not url.startswith("http://") and not url.startswith("https://"):
+                    url = f"{config.base_url_origin}{url}"
+                targets.append(ScrapeTarget(url=url, metadata={"date": m}))
+            return targets
 
         case "pagination_links":
             return [ScrapeTarget(url=config.base_url, follow_next=True, metadata={"date": today})]
