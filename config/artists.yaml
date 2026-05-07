@@ -168,9 +168,35 @@ artists:
     range_months: 3
   selectors:
     event_list: li.sys-schedule a.box_live_2
-    id: '::attr(href)'
+    id: ::attr(href)
     title: p.tit
     date: span.block--date__date
     date_format: '%d'
   detail:
     enabled: false
+- name: ss
+  display_name: SWEET STEADY
+  theme_color: '#5a1fff'
+  image_url: https://realsound.jp/wp-content/uploads/2024/12/20241223-sweetsteady-99.jpg
+  base_url: https://sweetsteady.asobisystem.com/live_information/schedule/list/
+  analyzed_at: '2026-05-07'
+  fetch:
+    dynamic: false
+  navigation:
+    type: path_segment
+    pattern: '{base_url_origin}/live_information/schedule/list/?viewMode=default&year={year}&month={month:02d}'
+    range_months: 3
+  selectors:
+    event_list: ul.list--schedule > li > a.box
+    id: ::attr(href)
+    title: p.tit
+    date: span.block--date__date
+    date_format: '%d'
+    venue: ''
+    ticket_url: ''
+  detail:
+    enabled: true
+    url_pattern: '{base_url_origin}{id}'
+    selectors:
+      venue: li:contains("会場") div, li:contains("会場") p, body::regex(会場[^\n]*\n\s*([^\n]+))
+      ticket_url: a:contains("チケット")::attr(href), a[href*="ticket"]::attr(href)

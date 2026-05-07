@@ -724,6 +724,48 @@ def _extract_event_snippets(html: str) -> str:
     return "\n\n".join(parts)
 
 
+def _load_artist_examples() -> str:
+    """config/artists.yaml から動作確認済みの設定を few-shot 例テキストとして返す。
+
+    Returns:
+        フォーマット済みの例文字列。読み込み失敗時は空文字。
+    """
+    from pathlib import Path
+    import yaml as _yaml
+
+    config_path = Path(__file__).resolve().parent.parent.parent / "config" / "artists.yaml"
+    if not config_path.exists():
+        return ""
+
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            data = _yaml.safe_load(f)
+
+        artists = [a for a in data.get("artists", []) if a.get("analyzed_at") and a.get("navigation")]
+        if not artists:
+            return ""
+
+        lines = [
+            "### 動作確認済みの既存設定（参考）",
+            "以下は実際に稼働している設定です。同様のサイト構造・プラットフォームの場合は参考にしてください。",
+            "",
+        ]
+        for artist in artists:
+            name = artist.get("display_name") or artist.get("name", "?")
+            base_url = artist.get("base_url", "")
+            config = {k: artist[k] for k in ("fetch", "navigation", "response", "selectors", "detail") if k in artist}
+            lines.append(f"#### [{name}] {base_url}")
+            lines.append("```json")
+            lines.append(json.dumps(config, ensure_ascii=False, indent=2))
+            lines.append("```")
+            lines.append("")
+
+        return "\n".join(lines)
+    except Exception as exc:
+        logger.warning("既存設定の読み込みに失敗しました: %s", exc)
+        return ""
+
+
 def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> str:
     """AI へ渡す解析プロンプトを構築する。
 
@@ -739,6 +781,7 @@ def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> s
     # スニペットはフル HTML から抽出し、AI に渡す HTML 本文は 20,000 字に制限する
     snippets_text = _extract_event_snippets(html)
     html_for_prompt = html[:20000]
+    existing_examples = _load_artist_examples()
 
     return f"""\
 ## 解析対象 URL
@@ -760,6 +803,8 @@ def _build_prompt(base_url: str, html: str, network_logs: list[NetworkLog]) -> s
 {snippets_text}
 
 {_FEW_SHOT_EXAMPLE}
+
+{existing_examples}
 
 {_OUTPUT_SCHEMA}
 
