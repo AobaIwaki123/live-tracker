@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/aobaiwaki123/live-tracker-frontend:d43c1d6
+          image: ghcr.io/aobaiwaki123/live-tracker-frontend:f533d99
           ports:
             - containerPort: 80
           resources:
